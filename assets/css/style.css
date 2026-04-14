@@ -1,0 +1,244 @@
+/* ============================================================
+   GLOBAL VARIABLES
+============================================================ */
+:root {
+  --brand-navy:   #1B2B4B;
+  --brand-blue:   #2563EB;
+  --brand-light:  #EFF4FF;
+  --brand-accent: #F59E0B;
+  --text-muted:   #6B7280;
+  --border:       #E5E7EB;
+  --radius:       14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* ============================================================
+   BODY
+============================================================ */
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #F0F4F8;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+/* ============================================================
+   AUTH LAYOUT
+============================================================ */
+.auth-wrapper {
+  display: flex;
+  width: 100%;
+  max-width: 900px;
+  min-height: 560px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,.12);
+}
+
+/* LEFT PANEL */
+.auth-brand {
+  flex: 1;
+  background: var(--brand-navy);
+  padding: 3rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-brand::before {
+  content: '';
+  position: absolute;
+  top: -80px; left: -80px;
+  width: 340px; height: 340px;
+  border-radius: 50%;
+  background: rgba(37,99,235,.25);
+}
+
+.auth-brand::after {
+  content: '';
+  position: absolute;
+  bottom: -60px; right: -60px;
+  width: 260px; height: 260px;
+  border-radius: 50%;
+  background: rgba(245,158,11,.15);
+}
+
+.brand-logo {
+  font-family: 'DM Serif Display', serif;
+  color: #fff;
+  font-size: 2rem;
+}
+
+.brand-logo span {
+  display: block;
+  font-family: 'DM Sans', sans-serif;
+  font-size: .78rem;
+  color: rgba(255,255,255,.55);
+}
+
+/* ============================================================
+   RIGHT PANEL
+============================================================ */
+.auth-form-panel {
+  flex: 1.2;
+  background: #fff;
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.auth-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.7rem;
+  color: var(--brand-navy);
+}
+
+.auth-subtitle {
+  color: var(--text-muted);
+  font-size: .88rem;
+  margin-bottom: 1.6rem;
+}
+
+/* ============================================================
+   FORMS
+============================================================ */
+.form-label {
+  font-size: .8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.input-group-icon {
+  position: relative;
+}
+
+.input-group-icon .bi {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+}
+
+.input-group-icon input {
+  padding-left: 2.6rem;
+}
+
+.form-control {
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: .7rem 1rem;
+}
+
+.form-control:focus {
+  border-color: var(--brand-blue);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+}
+
+/* PASSWORD TOGGLE */
+.pass-wrapper {
+  position: relative;
+}
+
+.pass-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+/* ============================================================
+   BUTTONS
+============================================================ */
+.btn-login,
+.btn-register {
+  background: var(--brand-blue);
+  color: #fff;
+  border-radius: 10px;
+  padding: .75rem;
+  font-weight: 600;
+  width: 100%;
+  border: none;
+}
+
+.btn-login:hover,
+.btn-register:hover {
+  background: #1D4ED8;
+}
+
+/* ============================================================
+   ALERTS
+============================================================ */
+.alert {
+  border-radius: 10px;
+  font-size: .87rem;
+}
+
+/* ============================================================
+   LINKS
+============================================================ */
+.register-link,
+.login-link {
+  text-align: center;
+  margin-top: 1.2rem;
+  font-size: .87rem;
+}
+
+.register-link a,
+.login-link a {
+  color: var(--brand-blue);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* ============================================================
+   REGISTER PAGE EXTRA
+============================================================ */
+.steps-list {
+  list-style: none;
+  padding: 0;
+}
+
+.step-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(37,99,235,.35);
+}
+
+/* PASSWORD STRENGTH */
+.strength-bar {
+  height: 4px;
+  background: var(--border);
+  margin-top: .5rem;
+}
+
+.strength-fill {
+  height: 100%;
+  width: 0;
+}
+
+/* ============================================================
+   RESPONSIVE
+============================================================ */
+@media (max-width: 640px) {
+  .auth-brand {
+    display: none;
+  }
+
+  .auth-form-panel {
+    padding: 2rem 1.5rem;
+  }
+}
