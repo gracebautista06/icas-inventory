@@ -40,8 +40,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     } else {
         // Fetch user by email
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ? LIMIT 1");
-        $stmt->execute([$email]);
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ? AND role = ? LIMIT 1");
+        $stmt->execute([$email, $_POST['role']]); 
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password_hash'])) {
@@ -385,6 +385,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           </button>
         </div>
       </div>
+
+      <div class="mb-3">
+  <label class="form-label">Login as</label>
+  <select name="role" class="form-select form-control" required>
+    <option value="instructor">Instructor</option>
+    <option value="admin">Administrator</option>
+  </select>
+</div>
 
       <button type="submit" class="btn-login">
         <i class="bi bi-box-arrow-in-right me-2"></i>Sign In

@@ -30,7 +30,7 @@ function current_user(): array
 {
     return [
         'id'   => $_SESSION['user_id']   ?? null,
-        'name' => $_SESSION['user_name'] ?? '',
+        'name' => $_SESSION['full_name'] ?? '',
         'role' => $_SESSION['user_role'] ?? '',
     ];
 }

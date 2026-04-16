@@ -24,6 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Collect & sanitize inputs
     $full_name        = trim($_POST['full_name']        ?? '');
     $email            = trim($_POST['email']            ?? '');
+    $role             = $_POST['role']                 ?? ''; // <-- 1. CAPTURE THE ROLE
     $password         =      $_POST['password']         ?? '';
     $confirm_password =      $_POST['confirm_password'] ?? '';
 
@@ -402,6 +403,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           >
         </div>
       </div>
+
+      <div class="mb-3">
+  <label class="form-label">Register as</label>
+  <div class="input-group-icon">
+    <i class="bi bi-briefcase"></i>
+    <select name="role" class="form-select form-control" style="padding-left: 2.6rem;" required>
+      <option value="instructor">Instructor</option>
+      <option value="admin">Administrator</option>
+    </select>
+  </div>
+</div>
 
       <!-- Password -->
       <div class="mb-3">
