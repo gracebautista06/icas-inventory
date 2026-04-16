@@ -12,8 +12,8 @@ $total_props   = $pdo->query("SELECT COUNT(*) FROM properties")->fetchColumn();
 $total_rooms   = $pdo->query("SELECT COUNT(*) FROM rooms")->fetchColumn();
 $total_users   = $pdo->query("SELECT COUNT(*) FROM users WHERE role='instructor'")->fetchColumn();
 $pending_rpts  = $pdo->query("SELECT COUNT(*) FROM reports WHERE status='pending'")->fetchColumn();
-$damaged_count = $pdo->query("SELECT COUNT(*) FROM property_conditions WHERE condition='damaged'")->fetchColumn();
-$missing_count = $pdo->query("SELECT COUNT(*) FROM property_conditions WHERE condition='missing'")->fetchColumn();
+$damaged_count = $pdo->query("SELECT COUNT(*) FROM property_conditions WHERE conditions='damaged'")->fetchColumn();
+$missing_count = $pdo->query("SELECT COUNT(*) FROM property_conditions WHERE conditions='missing'")->fetchColumn();
 
 // ── Recent condition reports ──────────────────────────────────
 $recent = $pdo->query("

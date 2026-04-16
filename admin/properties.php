@@ -85,7 +85,7 @@ $where_sql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
 $properties = $pdo->prepare("
     SELECT p.*, r.room_name,
-           (SELECT condition FROM property_conditions WHERE property_id = p.id ORDER BY reported_at DESC LIMIT 1) AS latest_condition
+           (SELECT conditions FROM property_conditions WHERE property_id = p.id ORDER BY reported_at DESC LIMIT 1) AS latest_condition
     FROM properties p
     JOIN rooms r ON p.room_id = r.id
     $where_sql

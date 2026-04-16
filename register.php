@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Collect & sanitize inputs
     $full_name        = trim($_POST['full_name']        ?? '');
     $email            = trim($_POST['email']            ?? '');
-    $role             = $_POST['role']                 ?? ''; // <-- 1. CAPTURE THE ROLE
+    $role             =      $_POST['role']             ?? '';
     $password         =      $_POST['password']         ?? '';
     $confirm_password =      $_POST['confirm_password'] ?? '';
 
@@ -66,9 +66,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $stmt = $pdo->prepare(
                 "INSERT INTO users (full_name, email, password_hash, role)
-                 VALUES (?, ?, ?, 'instructor')"
+                 VALUES (?, ?, ?, ?)"
             );
-            $stmt->execute([$full_name, $email, $hash]);
+            $stmt->execute([$full_name, $email, $hash, $role]);
 
             // Redirect to login with success message
             header('Location: index.php?registered=1');
