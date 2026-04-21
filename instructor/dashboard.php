@@ -6,7 +6,7 @@ require_once '../config/db.php';
 
 $user = current_user();
 $user_id = $user['id'];
-$user_name = $_SESSION['full_name'];
+$user_name = $_SESSION['full_name'] ?? $user['full_name'] ?? 'Instructor';
 
 // ─── Fetch assigned room(s) ───────────────────────────────────────────────
 $stmt = $pdo->prepare('
@@ -38,8 +38,9 @@ if ($primary_room) {
     $total_properties = (int) $s->fetchColumn();
 
     // Latest condition per property (reported by this instructor)
+    // NOTE: column is `conditions` (plural) per DB schema
     $s = $pdo->prepare('
-        SELECT pc.condition, COUNT(*) AS cnt
+        SELECT pc.conditions, COUNT(*) AS cnt
         FROM property_conditions pc
         INNER JOIN (
             SELECT property_id, MAX(reported_at) AS latest
@@ -49,17 +50,17 @@ if ($primary_room) {
         ) latest_only ON pc.property_id = latest_only.property_id
                       AND pc.reported_at = latest_only.latest
         WHERE pc.instructor_id = ?
-        GROUP BY pc.condition
+        GROUP BY pc.conditions
     ');
     $s->execute([$user_id, $user_id]);
     foreach ($s->fetchAll() as $row) {
-        if ($row['condition'] === 'good')    $good_count    = (int)$row['cnt'];
-        if ($row['condition'] === 'damaged') $damaged_count = (int)$row['cnt'];
-        if ($row['condition'] === 'missing') $missing_count = (int)$row['cnt'];
+        if ($row['conditions'] === 'good')    $good_count    = (int)$row['cnt'];
+        if ($row['conditions'] === 'damaged') $damaged_count = (int)$row['cnt'];
+        if ($row['conditions'] === 'missing') $missing_count = (int)$row['cnt'];
     }
 
     // Pending reports
-    $s = $pdo->prepare('SELECT COUNT(*) FROM reports WHERE instructor_id = ? AND room_id = ? AND status = "pending"');
+    $s = $pdo->prepare("SELECT COUNT(*) FROM reports WHERE instructor_id = ? AND room_id = ? AND status = 'pending'");
     $s->execute([$user_id, $rid]);
     $pending_reports = (int) $s->fetchColumn();
 }
@@ -68,7 +69,7 @@ if ($primary_room) {
 $recent_updates = [];
 if ($primary_room) {
     $s = $pdo->prepare('
-        SELECT pc.condition, pc.notes, pc.reported_at,
+        SELECT pc.conditions, pc.notes, pc.reported_at,
                p.property_name
         FROM property_conditions pc
         JOIN properties p ON p.id = pc.property_id
@@ -87,12 +88,12 @@ require_once '../includes/header.php';
 ?>
 
 <!-- ── Welcome Banner ───────────────────────────────────────────── -->
-<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-3">
     <div>
-        <h2 class="fw-bold mb-1" style="font-family:'Playfair Display',serif;color:var(--brand-navy)">
+        <h4 class="fw-bold mb-1" style="font-family:'Playfair Display',serif;color:var(--brand-navy)">
             Good <?= (date('H') < 12) ? 'morning' : ((date('H') < 17) ? 'afternoon' : 'evening') ?>,
             <?= htmlspecialchars(explode(' ', $user_name)[0]) ?>!
-        </h2>
+        </h4>
         <p class="text-muted mb-0" style="font-size:.9rem">
             <?= $primary_room
                 ? 'You are assigned to <strong>' . htmlspecialchars($primary_room['room_name']) . '</strong>.'
@@ -107,10 +108,10 @@ require_once '../includes/header.php';
 </div>
 
 <!-- ── Stat Cards ───────────────────────────────────────────────── -->
-<div class="row g-3 mb-4">
+<div class="row g-3 mb-3">
 
     <div class="col-6 col-md-3">
-        <div class="stat-card">
+        <div class="stat-card py-2">
             <div class="stat-icon" style="background:#eff6ff">
                 <i class="bi bi-archive" style="color:#1a4a7a"></i>
             </div>
@@ -122,7 +123,7 @@ require_once '../includes/header.php';
     </div>
 
     <div class="col-6 col-md-3">
-        <div class="stat-card">
+        <div class="stat-card py-2">
             <div class="stat-icon" style="background:#dcfce7">
                 <i class="bi bi-check-circle" style="color:#166534"></i>
             </div>
@@ -134,7 +135,7 @@ require_once '../includes/header.php';
     </div>
 
     <div class="col-6 col-md-3">
-        <div class="stat-card">
+        <div class="stat-card py-2">
             <div class="stat-icon" style="background:#fef9c3">
                 <i class="bi bi-exclamation-triangle" style="color:#854d0e"></i>
             </div>
@@ -146,7 +147,7 @@ require_once '../includes/header.php';
     </div>
 
     <div class="col-6 col-md-3">
-        <div class="stat-card">
+        <div class="stat-card py-2">
             <div class="stat-icon" style="background:#fee2e2">
                 <i class="bi bi-x-circle" style="color:#991b1b"></i>
             </div>
@@ -197,10 +198,10 @@ require_once '../includes/header.php';
                                             'damaged' => 'badge-damaged',
                                             'missing' => 'badge-missing',
                                         ];
-                                        $cls = $badgeMap[$u['condition']] ?? 'bg-secondary';
+                                        $cls = $badgeMap[$u['conditions']] ?? 'bg-secondary';
                                         ?>
                                         <span class="badge rounded-pill <?= $cls ?>" style="font-size:.75rem">
-                                            <?= ucfirst($u['condition']) ?>
+                                            <?= ucfirst($u['conditions']) ?>
                                         </span>
                                     </td>
                                     <td class="text-muted" style="max-width:200px">

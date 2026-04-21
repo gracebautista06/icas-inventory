@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $check->execute([$property_id, $room['room_id']]);
             if ($check->fetch()) {
                 $ins = $pdo->prepare('
-                    INSERT INTO property_conditions (property_id, instructor_id, `condition`, notes)
+                    INSERT INTO property_conditions (property_id, instructor_id, `conditions`, notes)
                     VALUES (?, ?, ?, ?)
                 ');
                 $ins->execute([$property_id, $user_id, $condition, $notes]);
@@ -60,7 +60,7 @@ if ($room) {
     $stmt = $pdo->prepare('
         SELECT
             p.*,
-            pc.condition   AS latest_condition,
+            pc.conditions   AS latest_condition,
             pc.notes       AS latest_notes,
             pc.reported_at AS latest_reported_at
         FROM properties p
@@ -136,9 +136,9 @@ require_once '../includes/header.php';
 
 <!-- ── Room Info Banner ──────────────────────────────────────────── -->
 <div class="card-section mb-4" style="background:var(--brand-navy);color:#fff;border:none">
-    <div class="p-4 d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div class="p-3 d-flex align-items-center justify-content-between flex-wrap gap-3">
         <div class="d-flex align-items-center gap-3">
-            <div style="width:54px;height:54px;background:rgba(200,151,58,.25);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0">
+            <div style="width:44px;height:44px;background:rgba(200,151,58,.25);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">
                 <i class="bi bi-door-open" style="color:var(--brand-gold)"></i>
             </div>
             <div>
@@ -163,7 +163,7 @@ require_once '../includes/header.php';
 </div>
 
 <!-- ── Condition Summary Badges ─────────────────────────────────── -->
-<div class="row g-3 mb-4">
+<div class="row g-3 mb-3">
     <?php
     $summaries = [
         ['label' => 'Good',        'count' => $count_good,    'icon' => 'check-circle',        'bg' => '#dcfce7', 'color' => '#166534'],

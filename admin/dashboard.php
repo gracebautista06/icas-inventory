@@ -34,7 +34,7 @@ open_layout('Dashboard');
   <div class="stat-card">
     <div class="stat-icon blue"><i class="bi bi-box-seam"></i></div>
     <div>
-      <div class="stat-label">Total Properties</div>
+      <div class="stat-label">Total Properties/Items</div>
       <div class="stat-value"><?= number_format($total_props) ?></div>
     </div>
   </div>
@@ -107,9 +107,9 @@ open_layout('Dashboard');
             <td>
               <?php
                 $map = ['good'=>'badge-good','damaged'=>'badge-damaged','missing'=>'badge-missing'];
-                $cls = $map[$r['condition']] ?? 'badge-good';
+                $cls = $map[$r['conditions']] ?? 'badge-good';
               ?>
-              <span class="badge-pill <?= $cls ?>"><?= ucfirst($r['condition']) ?></span>
+              <span class="badge-pill <?= $cls ?>"><?= ucfirst($r['conditions']) ?></span>
             </td>
             <td><?= htmlspecialchars($r['instructor_name']) ?></td>
             <td style="color:var(--muted)"><?= date('M j, Y g:i A', strtotime($r['reported_at'])) ?></td>

@@ -331,7 +331,7 @@ $depth  = (strpos($_SERVER['PHP_SELF'], '/admin/') !== false
         <?php if ($user_role === 'admin'): ?>
             <div class="nav-section-label">Admin</div>
             <a href="<?= $depth ?>admin/dashboard.php"      class="nav-link <?= $active_page === 'dashboard'   ? 'active' : '' ?>"><i class="bi bi-grid-1x2"></i> Dashboard</a>
-            <a href="<?= $depth ?>admin/properties.php"     class="nav-link <?= $active_page === 'properties'  ? 'active' : '' ?>"><i class="bi bi-archive"></i> Properties</a>
+            <a href="<?= $depth ?>admin/properties.php"     class="nav-link <?= $active_page === 'properties'  ? 'active' : '' ?>"><i class="bi bi-archive"></i> Properties/Items</a>
             <a href="<?= $depth ?>admin/users.php"          class="nav-link <?= $active_page === 'users'       ? 'active' : '' ?>"><i class="bi bi-people"></i> Users</a>
             <a href="<?= $depth ?>admin/reports.php"        class="nav-link <?= $active_page === 'reports'     ? 'active' : '' ?>"><i class="bi bi-file-earmark-text"></i> Reports</a>
         <?php else: ?>
@@ -369,4 +369,4 @@ $depth  = (strpos($_SERVER['PHP_SELF'], '/admin/') !== false
 </header>
 
 <!-- ── Main Content Wrapper ─────────────────────────────────────── -->
-<main class="main-content"></main>
+<main class="main-content">
