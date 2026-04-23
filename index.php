@@ -358,7 +358,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             class="form-control"
             id="email"
             name="email"
-            placeholder="you@school.edu"
+            placeholder="Enter ezmail"
             value="<?= htmlspecialchars($_POST['email'] ?? '') ?>"
             required
             autocomplete="email"
