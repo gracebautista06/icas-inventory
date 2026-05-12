@@ -242,3 +242,32 @@ body {
     padding: 2rem 1.5rem;
   }
 }
+/* background*/
+body {
+  font-family: 'DM Sans', sans-serif;
+  background-image: url('assets/img/icas school background.jpg'); 
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed; 
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.auth-brand {
+  flex: 1;
+  background-image: url('your-image.jpg'); 
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  /* rest stays the same */
+  padding: 3rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+}
