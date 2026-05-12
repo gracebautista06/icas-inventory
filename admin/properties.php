@@ -99,6 +99,9 @@ if ($action === 'edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 // DELETE
 if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = (int)($_POST['property_id'] ?? 0);
+    // Remove child condition records first to satisfy the FK constraint,
+    // then delete the property itself.
+    $pdo->prepare("DELETE FROM property_conditions WHERE property_id=?")->execute([$id]);
     $pdo->prepare("DELETE FROM properties WHERE id=?")->execute([$id]);
     $flash = 'Property deleted.';
 }
