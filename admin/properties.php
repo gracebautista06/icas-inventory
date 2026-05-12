@@ -7,42 +7,97 @@ require_once '../includes/auth_check.php';
 require_role('admin');
 
 // ── AJAX branch: ?ajax=1 → return JSON and exit ─────────────
-// The room dropdown change event calls this same file with
-// ?ajax=1 appended, so no separate API file is needed.
 if (isset($_GET['ajax'])) {
     header('Content-Type: application/json');
 
     $search      = trim($_GET['q']    ?? '');
     $room_filter = (int)($_GET['room'] ?? 0);
 
-    $where = []; $params = [];
-    if ($search) {
-        $where[]  = "(p.property_name LIKE ? OR p.category LIKE ? OR p.serial_no LIKE ?)";
-        $params[] = "%$search%"; $params[] = "%$search%"; $params[] = "%$search%";
+    // ── Lookup branch: ?ajax=1&lookup=name → return autofill data ──
+    // Used by the Add modal to pre-fill fields for existing items.
+    if (isset($_GET['lookup'])) {
+        $name = trim($_GET['lookup']);
+        $row  = $pdo->prepare("SELECT category, serial_no, date_acquired FROM properties WHERE property_name = ? LIMIT 1");
+        $row->execute([$name]);
+        echo json_encode($row->fetch(PDO::FETCH_ASSOC) ?: null);
+        exit;
     }
+
+    // ── Autocomplete branch: ?ajax=1&suggest=term → return name list ──
+    if (isset($_GET['suggest'])) {
+        $term = '%' . trim($_GET['suggest']) . '%';
+        $rows = $pdo->prepare("SELECT DISTINCT property_name FROM properties WHERE property_name LIKE ? ORDER BY property_name LIMIT 8");
+        $rows->execute([$term]);
+        echo json_encode($rows->fetchAll(PDO::FETCH_COLUMN));
+        exit;
+    }
+
+    // ── Main list fetch ──────────────────────────────────────
     if ($room_filter) {
-        $where[]  = "p.room_id = ?";
-        $params[] = $room_filter;
+        // Specific room: show individual rows for that room
+        $where = ["p.room_id = ?"];
+        $params = [$room_filter];
+        if ($search) {
+            $where[]  = "(p.property_name LIKE ? OR p.category LIKE ? OR p.serial_no LIKE ?)";
+            $params[] = "%$search%"; $params[] = "%$search%"; $params[] = "%$search%";
+        }
+        $where_sql = 'WHERE ' . implode(' AND ', $where);
+
+        $stmt = $pdo->prepare("
+            SELECT p.id, p.property_name, p.category, p.serial_no,
+                   p.quantity, p.date_acquired, p.remarks, p.room_id,
+                   r.room_name,
+                   (SELECT conditions FROM property_conditions
+                    WHERE property_id = p.id ORDER BY reported_at DESC LIMIT 1) AS latest_condition,
+                   0 AS is_grouped
+            FROM properties p
+            JOIN rooms r ON p.room_id = r.id
+            $where_sql
+            ORDER BY p.property_name ASC
+        ");
+        $stmt->execute($params);
+
+    } else {
+        // All rooms: GROUP BY property_name — one row per unique item, qty summed
+        $where = []; $params = [];
+        if ($search) {
+            $where[]  = "(p.property_name LIKE ? OR p.category LIKE ? OR p.serial_no LIKE ?)";
+            $params[] = "%$search%"; $params[] = "%$search%"; $params[] = "%$search%";
+        }
+        $where_sql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+
+        $stmt = $pdo->prepare("
+            SELECT
+                MIN(p.id)           AS id,
+                p.property_name,
+                MAX(p.category)     AS category,
+                MAX(p.serial_no)    AS serial_no,
+                SUM(p.quantity)     AS quantity,
+                MIN(p.date_acquired) AS date_acquired,
+                MAX(p.remarks)      AS remarks,
+                NULL                AS room_id,
+                GROUP_CONCAT(DISTINCT r.room_name ORDER BY r.room_name SEPARATOR ', ') AS room_name,
+                (SELECT conditions FROM property_conditions
+                 WHERE property_id = MIN(p.id) ORDER BY reported_at DESC LIMIT 1) AS latest_condition,
+                COUNT(DISTINCT p.room_id) AS room_count,
+                1 AS is_grouped
+            FROM properties p
+            JOIN rooms r ON p.room_id = r.id
+            $where_sql
+            GROUP BY p.property_name
+            ORDER BY p.property_name ASC
+        ");
+        $stmt->execute($params);
     }
-    $where_sql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
-    $stmt = $pdo->prepare("
-        SELECT p.*, r.room_name,
-               (SELECT conditions FROM property_conditions
-                WHERE property_id = p.id ORDER BY reported_at DESC LIMIT 1) AS latest_condition
-        FROM properties p
-        JOIN rooms r ON p.room_id = r.id
-        $where_sql
-        ORDER BY p.id DESC
-    ");
-    $stmt->execute($params);
-    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
+    $rows        = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $total_items = array_sum(array_column($rows, 'quantity'));
+
     echo json_encode([
         'properties'  => $rows,
         'count'       => count($rows),
         'total_items' => $total_items,
+        'grouped'     => !$room_filter,
     ]);
     exit;
 }
@@ -104,8 +159,6 @@ if ($action === 'edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 // DELETE
 if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = (int)($_POST['property_id'] ?? 0);
-    // Remove child condition records first to satisfy the FK constraint,
-    // then delete the property itself.
     $pdo->prepare("DELETE FROM property_conditions WHERE property_id=?")->execute([$id]);
     $pdo->prepare("DELETE FROM properties WHERE id=?")->execute([$id]);
     $flash = 'Property deleted.';
@@ -115,29 +168,68 @@ if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 $search      = trim($_GET['q']    ?? '');
 $room_filter = (int)($_GET['room'] ?? 0);
 
-$where  = []; $params = [];
-if ($search) {
-    $where[]  = "(p.property_name LIKE ? OR p.category LIKE ? OR p.serial_no LIKE ?)";
-    $params[] = "%$search%"; $params[] = "%$search%"; $params[] = "%$search%";
-}
 if ($room_filter) {
-    $where[]  = "p.room_id = ?";
-    $params[] = $room_filter;
+    // Specific room: individual rows
+    $where = ["p.room_id = ?"];
+    $params = [$room_filter];
+    if ($search) {
+        $where[]  = "(p.property_name LIKE ? OR p.category LIKE ? OR p.serial_no LIKE ?)";
+        $params[] = "%$search%"; $params[] = "%$search%"; $params[] = "%$search%";
+    }
+    $where_sql = 'WHERE ' . implode(' AND ', $where);
+
+    $stmt = $pdo->prepare("
+        SELECT p.id, p.property_name, p.category, p.serial_no,
+               p.quantity, p.date_acquired, p.remarks, p.room_id,
+               r.room_name,
+               (SELECT conditions FROM property_conditions
+                WHERE property_id = p.id ORDER BY reported_at DESC LIMIT 1) AS latest_condition,
+               0 AS is_grouped
+        FROM properties p
+        JOIN rooms r ON p.room_id = r.id
+        $where_sql
+        ORDER BY p.property_name ASC
+    ");
+    $stmt->execute($params);
+
+} else {
+    // All rooms: grouped — one row per unique property name, qty summed
+    $where = []; $params = [];
+    if ($search) {
+        $where[]  = "(p.property_name LIKE ? OR p.category LIKE ? OR p.serial_no LIKE ?)";
+        $params[] = "%$search%"; $params[] = "%$search%"; $params[] = "%$search%";
+    }
+    $where_sql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+
+    $stmt = $pdo->prepare("
+        SELECT
+            MIN(p.id)           AS id,
+            p.property_name,
+            MAX(p.category)     AS category,
+            MAX(p.serial_no)    AS serial_no,
+            SUM(p.quantity)     AS quantity,
+            MIN(p.date_acquired) AS date_acquired,
+            MAX(p.remarks)      AS remarks,
+            NULL                AS room_id,
+            GROUP_CONCAT(DISTINCT r.room_name ORDER BY r.room_name SEPARATOR ', ') AS room_name,
+            (SELECT conditions FROM property_conditions
+             WHERE property_id = MIN(p.id) ORDER BY reported_at DESC LIMIT 1) AS latest_condition,
+            COUNT(DISTINCT p.room_id) AS room_count,
+            1 AS is_grouped
+        FROM properties p
+        JOIN rooms r ON p.room_id = r.id
+        $where_sql
+        GROUP BY p.property_name
+        ORDER BY p.property_name ASC
+    ");
+    $stmt->execute($params);
 }
-$where_sql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
-$properties = $pdo->prepare("
-    SELECT p.*, r.room_name,
-           (SELECT conditions FROM property_conditions WHERE property_id = p.id ORDER BY reported_at DESC LIMIT 1) AS latest_condition
-    FROM properties p
-    JOIN rooms r ON p.room_id = r.id
-    $where_sql
-    ORDER BY p.id DESC
-");
-$properties->execute($params);
-$properties = $properties->fetchAll();
-
-$rooms = $pdo->query("SELECT * FROM rooms ORDER BY room_name")->fetchAll();
+$properties  = $stmt->fetchAll();
+$rooms       = $pdo->query("SELECT * FROM rooms ORDER BY room_name")->fetchAll();
+$total_qty   = array_sum(array_column($properties, 'quantity'));
+$row_count   = count($properties);
+$is_grouped  = !$room_filter;
 
 open_layout('Properties');
 ?>
@@ -149,7 +241,7 @@ open_layout('Properties');
   </div>
 <?php endif; ?>
 
-<!-- Top bar: search + room dropdown (auto-filters on change) + add button -->
+<!-- Top bar -->
 <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:1.25rem;">
   <div style="display:flex;gap:.6rem;flex:1;flex-wrap:wrap;align-items:center;">
 
@@ -161,9 +253,7 @@ open_layout('Properties');
              autocomplete="off">
     </div>
 
-    <!-- Room dropdown — fires AJAX on change, no page reload -->
-    <select id="room-filter" class="form-select" style="width:auto;min-width:160px;"
-            data-initial="<?= $room_filter ?>">
+    <select id="room-filter" class="form-select" style="width:auto;min-width:160px;">
       <option value="">All rooms</option>
       <?php foreach ($rooms as $rm): ?>
         <option value="<?= $rm['id'] ?>" <?= $room_filter === (int)$rm['id'] ? 'selected' : '' ?>>
@@ -172,12 +262,10 @@ open_layout('Properties');
       <?php endforeach; ?>
     </select>
 
-    <!-- Visible only when a filter is active -->
     <a id="clear-filters" href="properties.php"
-       style="display:none;align-items:center;gap:.25rem;color:var(--blue);font-size:.82rem;white-space:nowrap;">
+       style="display:<?= ($room_filter || $search) ? 'flex' : 'none' ?>;align-items:center;gap:.25rem;color:var(--blue);font-size:.82rem;white-space:nowrap;">
       <i class="bi bi-x-circle"></i> Clear
     </a>
-
   </div>
   <button class="btn-primary-custom" onclick="openModal('modal-add')">
     <i class="bi bi-plus-lg"></i> Add Property
@@ -188,11 +276,8 @@ open_layout('Properties');
 <div class="card">
   <div class="card-header-custom">
     <h5><i class="bi bi-box-seam me-2" style="color:var(--blue)"></i>
-        <span id="table-heading">All Properties</span></h5>
-    <?php
-      $total_qty = array_sum(array_column($properties, 'quantity'));
-      $row_count = count($properties);
-    ?>
+        <span id="table-heading"><?= $room_filter ? htmlspecialchars(array_values(array_filter($rooms, fn($r) => (int)$r['id'] === $room_filter))[0]['room_name'] ?? '') . ' Properties' : 'All Properties' ?></span>
+    </h5>
     <span id="record-count" style="font-size:.78rem;color:var(--muted)">
       <?= number_format($total_qty) ?> item<?= $total_qty !== 1 ? 's' : '' ?>
       <span style="opacity:.5;margin:0 .25rem">&middot;</span>
@@ -201,11 +286,9 @@ open_layout('Properties');
   </div>
   <div style="overflow-x:auto;position:relative;">
 
-    <!-- Loading shimmer shown during AJAX -->
     <div id="table-loading"
          style="display:none;position:absolute;inset:0;background:rgba(255,255,255,.75);
-                z-index:10;align-items:center;justify-content:center;gap:.5rem;
-                font-size:.85rem;color:var(--muted);">
+                z-index:10;align-items:center;justify-content:center;gap:.5rem;font-size:.85rem;color:var(--muted);">
       <div style="width:1rem;height:1rem;border:2px solid var(--blue);border-top-color:transparent;
                   border-radius:50%;animation:spin .6s linear infinite;"></div>
       Loading…
@@ -215,8 +298,9 @@ open_layout('Properties');
     <table class="table-custom">
       <thead>
         <tr>
-          <th>#</th><th>Property Name</th><th>Category</th><th>Room</th>
-          <th>Qty</th><th>Serial No.</th><th>Condition</th><th>Date Acquired</th><th>Actions</th>
+          <th>#</th><th>Property Name</th><th>Category</th><th>Room(s)</th>
+          <th>Total Qty</th><th>Serial No.</th><th>Condition</th><th>Date Acquired</th>
+          <th id="actions-col">Actions</th>
         </tr>
       </thead>
       <tbody id="properties-tbody">
@@ -230,20 +314,37 @@ open_layout('Properties');
             <td style="color:var(--muted);font-size:.78rem;"><?= $i + 1 ?></td>
             <td style="font-weight:600;max-width:200px;"><?= htmlspecialchars($p['property_name']) ?></td>
             <td><?= htmlspecialchars($p['category'] ?: '—') ?></td>
-            <td><span style="background:var(--blue-soft);color:var(--blue);padding:.2rem .6rem;border-radius:4px;font-size:.75rem;font-weight:600;"><?= htmlspecialchars($p['room_name']) ?></span></td>
-            <td><?= $p['quantity'] ?></td>
+            <td>
+              <?php if ($is_grouped && ($p['room_count'] ?? 1) > 1): ?>
+                <span title="<?= htmlspecialchars($p['room_name']) ?>"
+                      style="background:var(--blue-soft);color:var(--blue);padding:.2rem .6rem;border-radius:4px;font-size:.75rem;font-weight:600;cursor:default;">
+                  <?= $p['room_count'] ?> rooms
+                </span>
+              <?php else: ?>
+                <span style="background:var(--blue-soft);color:var(--blue);padding:.2rem .6rem;border-radius:4px;font-size:.75rem;font-weight:600;">
+                  <?= htmlspecialchars($p['room_name']) ?>
+                </span>
+              <?php endif; ?>
+            </td>
+            <td style="font-weight:<?= $is_grouped ? '700' : '400' ?>;">
+              <?= $p['quantity'] ?>
+              <?php if ($is_grouped && ($p['room_count'] ?? 1) > 1): ?>
+                <span style="color:var(--muted);font-size:.72rem;font-weight:400"> total</span>
+              <?php endif; ?>
+            </td>
             <td style="color:var(--muted);font-family:monospace;font-size:.82rem;"><?= htmlspecialchars($p['serial_no'] ?: '—') ?></td>
             <td>
               <?php
                 $cond = $p['latest_condition'];
-                if ($cond === 'damaged')      echo '<span class="badge-pill badge-damaged">Damaged</span>';
-                elseif ($cond === 'missing')  echo '<span class="badge-pill badge-missing">Missing</span>';
-                elseif ($cond === 'good')     echo '<span class="badge-pill badge-good">Good</span>';
+                if ($cond === 'damaged')     echo '<span class="badge-pill badge-damaged">Damaged</span>';
+                elseif ($cond === 'missing') echo '<span class="badge-pill badge-missing">Missing</span>';
+                elseif ($cond === 'good')    echo '<span class="badge-pill badge-good">Good</span>';
                 else echo '<span style="color:var(--muted);font-size:.78rem;">Not reported</span>';
               ?>
             </td>
             <td style="color:var(--muted);"><?= $p['date_acquired'] ? date('M j, Y', strtotime($p['date_acquired'])) : '—' ?></td>
             <td>
+              <?php if (!$is_grouped): ?>
               <div style="display:flex;gap:.35rem;">
                 <button class="btn-sm-action" onclick='openEditModal(<?= htmlspecialchars(json_encode($p)) ?>)'>
                   <i class="bi bi-pencil"></i>
@@ -253,6 +354,9 @@ open_layout('Properties');
                   <i class="bi bi-trash"></i>
                 </button>
               </div>
+              <?php else: ?>
+                <span style="color:var(--muted);font-size:.75rem;">Select a room to edit</span>
+              <?php endif; ?>
             </td>
           </tr>
           <?php endforeach; ?>
@@ -260,6 +364,12 @@ open_layout('Properties');
       </tbody>
     </table>
   </div>
+  <?php if ($is_grouped): ?>
+  <div style="padding:.6rem 1rem;font-size:.76rem;color:var(--muted);border-top:1px solid var(--border);background:var(--surface);">
+    <i class="bi bi-info-circle me-1"></i>
+    Showing combined totals across all rooms. Select a specific room above to edit individual entries.
+  </div>
+  <?php endif; ?>
 </div>
 
 <!-- ═══ ADD MODAL ═══ -->
@@ -273,10 +383,23 @@ open_layout('Properties');
       <input type="hidden" name="action" value="add">
       <div class="modal-body-custom">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-          <div style="grid-column:span 2">
+
+          <div style="grid-column:span 2;position:relative;">
             <label class="form-label">Property Name *</label>
-            <input type="text" name="property_name" class="form-control" placeholder="e.g. Monobloc Chair" required>
+            <input type="text" name="property_name" id="add-name" class="form-control"
+                   placeholder="e.g. Monobloc Chair" required autocomplete="off">
+            <!-- Autocomplete dropdown -->
+            <ul id="add-name-suggestions"
+                style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;
+                       background:#fff;border:1px solid var(--border);border-radius:0 0 8px 8px;
+                       margin:0;padding:0;list-style:none;box-shadow:0 4px 12px rgba(0,0,0,.1);max-height:200px;overflow-y:auto;">
+            </ul>
+            <div id="add-autofill-badge"
+                 style="display:none;margin-top:.35rem;font-size:.75rem;color:var(--blue);">
+              <i class="bi bi-lightning-fill"></i> Fields auto-filled from existing record
+            </div>
           </div>
+
           <div style="grid-column:span 2">
             <label class="form-label">Room / Area *</label>
             <select name="room_id" class="form-select" required>
@@ -286,22 +409,27 @@ open_layout('Properties');
               <?php endforeach; ?>
             </select>
           </div>
+
           <div>
             <label class="form-label">Category</label>
-            <input type="text" name="category" class="form-control" placeholder="e.g. Furniture">
+            <input type="text" name="category" id="add-cat" class="form-control" placeholder="e.g. Furniture">
           </div>
+
           <div>
             <label class="form-label">Serial / Property No.</label>
-            <input type="text" name="serial_no" class="form-control" placeholder="e.g. SCH-2024-001">
+            <input type="text" name="serial_no" id="add-serial" class="form-control" placeholder="e.g. SCH-2024-001">
           </div>
+
           <div>
             <label class="form-label">Quantity</label>
             <input type="number" name="quantity" class="form-control" value="1" min="1">
           </div>
+
           <div>
             <label class="form-label">Date Acquired</label>
-            <input type="date" name="date_acquired" class="form-control">
+            <input type="date" name="date_acquired" id="add-date" class="form-control">
           </div>
+
           <div style="grid-column:span 2">
             <label class="form-label">Remarks</label>
             <textarea name="remarks" class="form-control" rows="2" placeholder="Optional notes…"></textarea>
@@ -396,7 +524,7 @@ open_layout('Properties');
 </div>
 
 <script>
-// ── Modal helpers (unchanged) ─────────────────────────────────
+// ── Modal helpers ─────────────────────────────────────────────
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
@@ -428,27 +556,117 @@ function openDeleteModal(id, name) {
   openModal('modal-edit');
 <?php endif; ?>
 
+// ── Add modal: autocomplete + auto-fill ──────────────────────
+(function () {
+  const nameInput  = document.getElementById('add-name');
+  const suggestions = document.getElementById('add-name-suggestions');
+  const badge      = document.getElementById('add-autofill-badge');
+  const catInput   = document.getElementById('add-cat');
+  const serialInput= document.getElementById('add-serial');
+  const dateInput  = document.getElementById('add-date');
+
+  const ajaxBase = new URL(location.href);
+  ajaxBase.search = '';
+  ajaxBase.searchParams.set('ajax', '1');
+
+  let suggestTimer = null;
+
+  // Close suggestions on outside click
+  document.addEventListener('click', e => {
+    if (!nameInput.contains(e.target) && !suggestions.contains(e.target)) {
+      suggestions.style.display = 'none';
+    }
+  });
+
+  // Autocomplete suggestions while typing
+  nameInput.addEventListener('input', () => {
+    badge.style.display = 'none';
+    clearTimeout(suggestTimer);
+    const term = nameInput.value.trim();
+
+    if (term.length < 2) { suggestions.style.display = 'none'; return; }
+
+    suggestTimer = setTimeout(async () => {
+      const url = new URL(ajaxBase);
+      url.searchParams.set('suggest', term);
+      const res  = await fetch(url);
+      const list = await res.json();
+
+      if (!list.length) { suggestions.style.display = 'none'; return; }
+
+      suggestions.innerHTML = list.map(name => `
+        <li style="padding:.5rem .9rem;cursor:pointer;font-size:.87rem;border-bottom:1px solid var(--border);"
+            onmouseenter="this.style.background='var(--blue-soft)'"
+            onmouseleave="this.style.background=''"
+            data-name="${name.replace(/"/g,'&quot;')}">
+          ${name}
+        </li>
+      `).join('');
+      suggestions.style.display = 'block';
+
+      // Click a suggestion → fill name + auto-fill other fields
+      suggestions.querySelectorAll('li').forEach(li => {
+        li.addEventListener('click', () => {
+          nameInput.value = li.dataset.name;
+          suggestions.style.display = 'none';
+          autoFill(li.dataset.name);
+        });
+      });
+    }, 250);
+  });
+
+  // Auto-fill on exact match when user leaves the field
+  nameInput.addEventListener('blur', () => {
+    // Small delay so suggestion clicks register first
+    setTimeout(() => {
+      const term = nameInput.value.trim();
+      if (term) autoFill(term);
+    }, 200);
+  });
+
+  // Fetch existing record and fill category, serial, date
+  async function autoFill(name) {
+    const url = new URL(ajaxBase);
+    url.searchParams.set('lookup', name);
+    const res  = await fetch(url);
+    const data = await res.json();
+
+    if (!data) { badge.style.display = 'none'; return; }
+
+    let filled = false;
+    if (data.category     && !catInput.value)    { catInput.value    = data.category;     filled = true; }
+    if (data.serial_no    && !serialInput.value) { serialInput.value = data.serial_no;    filled = true; }
+    if (data.date_acquired && !dateInput.value)  { dateInput.value   = data.date_acquired; filled = true; }
+
+    badge.style.display = filled ? 'block' : 'none';
+  }
+
+  // Clear auto-fill badge when modal closes
+  document.getElementById('modal-add').addEventListener('click', e => {
+    if (e.target.classList.contains('modal-close') || e.target === e.currentTarget) {
+      badge.style.display = 'none';
+      suggestions.style.display = 'none';
+    }
+  });
+})();
+
 // ── Dynamic room filtering ────────────────────────────────────
 (function () {
-  const roomSel    = document.getElementById('room-filter');
-  const searchInp  = document.getElementById('prop-search');
-  const tbody      = document.getElementById('properties-tbody');
-  const countEl    = document.getElementById('record-count');
-  const headingEl  = document.getElementById('table-heading');
-  const loadingEl  = document.getElementById('table-loading');
-  const clearLink  = document.getElementById('clear-filters');
+  const roomSel   = document.getElementById('room-filter');
+  const searchInp = document.getElementById('prop-search');
+  const tbody     = document.getElementById('properties-tbody');
+  const countEl   = document.getElementById('record-count');
+  const headingEl = document.getElementById('table-heading');
+  const loadingEl = document.getElementById('table-loading');
+  const clearLink = document.getElementById('clear-filters');
 
-  // Room name map built from dropdown options (no extra request needed)
   const roomNames = {};
   [...roomSel.options].forEach(o => { if (o.value) roomNames[o.value] = o.text; });
 
-  let debounce = null;
-  let controller = null;
+  let debounce = null, controller = null;
 
   function esc(s) {
-    const d = document.createElement('div');
-    d.textContent = s ?? '';
-    return d.innerHTML;
+    const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML;
   }
 
   function badge(cond) {
@@ -463,42 +681,69 @@ function openDeleteModal(id, name) {
     return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
   }
 
-  function buildRow(p, n) {
+  function buildRow(p, n, grouped) {
     const json = esc(JSON.stringify(p));
     const safe = (p.property_name || '').replace(/'/g, "\\'");
+    const roomCount = parseInt(p.room_count || 1);
+
+    const roomCell = (grouped && roomCount > 1)
+      ? `<span title="${esc(p.room_name)}" style="background:var(--blue-soft);color:var(--blue);padding:.2rem .6rem;border-radius:4px;font-size:.75rem;font-weight:600;cursor:default;">${roomCount} rooms</span>`
+      : `<span style="background:var(--blue-soft);color:var(--blue);padding:.2rem .6rem;border-radius:4px;font-size:.75rem;font-weight:600;">${esc(p.room_name)}</span>`;
+
+    const qtyCell = (grouped && roomCount > 1)
+      ? `<strong>${p.quantity}</strong> <span style="color:var(--muted);font-size:.72rem;">total</span>`
+      : p.quantity;
+
+    const actionsCell = grouped
+      ? `<span style="color:var(--muted);font-size:.75rem;">Select a room to edit</span>`
+      : `<div style="display:flex;gap:.35rem;">
+           <button class="btn-sm-action" onclick='openEditModal(${json})'><i class="bi bi-pencil"></i></button>
+           <button class="btn-sm-action danger" onclick="openDeleteModal(${p.id},'${safe}')"><i class="bi bi-trash"></i></button>
+         </div>`;
+
     return `<tr>
       <td style="color:var(--muted);font-size:.78rem;">${n}</td>
       <td style="font-weight:600;max-width:200px;">${esc(p.property_name)}</td>
       <td>${esc(p.category || '—')}</td>
-      <td><span style="background:var(--blue-soft);color:var(--blue);padding:.2rem .6rem;border-radius:4px;font-size:.75rem;font-weight:600;">${esc(p.room_name)}</span></td>
-      <td>${p.quantity}</td>
+      <td>${roomCell}</td>
+      <td>${qtyCell}</td>
       <td style="color:var(--muted);font-family:monospace;font-size:.82rem;">${esc(p.serial_no || '—')}</td>
       <td>${badge(p.latest_condition)}</td>
       <td style="color:var(--muted);">${fmtDate(p.date_acquired)}</td>
-      <td><div style="display:flex;gap:.35rem;">
-        <button class="btn-sm-action" onclick='openEditModal(${json})'><i class="bi bi-pencil"></i></button>
-        <button class="btn-sm-action danger" onclick="openDeleteModal(${p.id},'${safe}')"><i class="bi bi-trash"></i></button>
-      </div></td>
+      <td>${actionsCell}</td>
     </tr>`;
+  }
+
+  // Add/remove the grouped info footer
+  function setGroupedFooter(show) {
+    let footer = document.getElementById('grouped-footer');
+    const card  = document.querySelector('.card');
+    if (show) {
+      if (!footer) {
+        footer = document.createElement('div');
+        footer.id = 'grouped-footer';
+        footer.style.cssText = 'padding:.6rem 1rem;font-size:.76rem;color:var(--muted);border-top:1px solid var(--border);background:var(--surface);';
+        footer.innerHTML = '<i class="bi bi-info-circle me-1"></i>Showing combined totals across all rooms. Select a specific room above to edit individual entries.';
+        card.appendChild(footer);
+      }
+    } else if (footer) {
+      footer.remove();
+    }
   }
 
   async function fetchProperties() {
     const room = roomSel.value;
     const q    = searchInp.value.trim();
 
-    // Update UI state
-    const hasFilter = room || q;
-    clearLink.style.display = hasFilter ? 'flex' : 'none';
+    clearLink.style.display = (room || q) ? 'flex' : 'none';
     headingEl.textContent   = room ? (roomNames[room] + ' Properties') : 'All Properties';
     loadingEl.style.display = 'flex';
 
-    // Cancel previous in-flight request
     if (controller) controller.abort();
     controller = new AbortController();
 
-    // Call THIS same file with ?ajax=1
     const url = new URL(location.href);
-    url.search = '';                         // clear existing params
+    url.search = '';
     url.searchParams.set('ajax', '1');
     if (room) url.searchParams.set('room', room);
     if (q)    url.searchParams.set('q', q);
@@ -506,6 +751,7 @@ function openDeleteModal(id, name) {
     try {
       const res  = await fetch(url, { signal: controller.signal });
       const data = await res.json();
+      const grouped = data.grouped;
 
       if (data.count === 0) {
         const msg = room
@@ -513,17 +759,18 @@ function openDeleteModal(id, name) {
           : 'No properties found. <a href="properties.php" style="color:var(--blue)">Clear filters</a>';
         tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:2.5rem;">${msg}</td></tr>`;
       } else {
-        tbody.innerHTML = data.properties.map((p, i) => buildRow(p, i + 1)).join('');
+        tbody.innerHTML = data.properties.map((p, i) => buildRow(p, i + 1, grouped)).join('');
       }
 
-      const totalItems = data.properties.reduce((sum, p) => sum + parseInt(p.quantity || 0), 0);
+      const totalItems = data.properties.reduce((s, p) => s + parseInt(p.quantity || 0), 0);
       const rowCount   = data.count;
       countEl.innerHTML =
         `${totalItems.toLocaleString()} item${totalItems !== 1 ? 's' : ''}`
         + ` <span style="opacity:.5;margin:0 .25rem">&middot;</span> `
         + `${rowCount} entr${rowCount !== 1 ? 'ies' : 'y'}`;
 
-      // Keep URL in sync for bookmarking
+      setGroupedFooter(grouped && data.count > 0);
+
       const qs = new URLSearchParams();
       if (room) qs.set('room', room);
       if (q)    qs.set('q', q);
@@ -541,16 +788,12 @@ function openDeleteModal(id, name) {
     }
   }
 
-  // Room change → instant fetch
   roomSel.addEventListener('change', fetchProperties);
-
-  // Search → debounced fetch (350ms)
   searchInp.addEventListener('input', () => {
     clearTimeout(debounce);
     debounce = setTimeout(fetchProperties, 350);
   });
 
-  // On load, show clear-link if filters were in the URL
   if (roomSel.value || searchInp.value.trim()) {
     clearLink.style.display = 'flex';
     if (roomSel.value) headingEl.textContent = roomNames[roomSel.value] + ' Properties';
