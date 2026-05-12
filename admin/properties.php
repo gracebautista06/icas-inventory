@@ -4,8 +4,46 @@
 // ============================================================
 require_once '../config/db.php';
 require_once '../includes/auth_check.php';
-require_once '../includes/admin_layout.php';
 require_role('admin');
+
+// ── AJAX branch: ?ajax=1 → return JSON and exit ─────────────
+// The room dropdown change event calls this same file with
+// ?ajax=1 appended, so no separate API file is needed.
+if (isset($_GET['ajax'])) {
+    header('Content-Type: application/json');
+
+    $search      = trim($_GET['q']    ?? '');
+    $room_filter = (int)($_GET['room'] ?? 0);
+
+    $where = []; $params = [];
+    if ($search) {
+        $where[]  = "(p.property_name LIKE ? OR p.category LIKE ? OR p.serial_no LIKE ?)";
+        $params[] = "%$search%"; $params[] = "%$search%"; $params[] = "%$search%";
+    }
+    if ($room_filter) {
+        $where[]  = "p.room_id = ?";
+        $params[] = $room_filter;
+    }
+    $where_sql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+
+    $stmt = $pdo->prepare("
+        SELECT p.*, r.room_name,
+               (SELECT conditions FROM property_conditions
+                WHERE property_id = p.id ORDER BY reported_at DESC LIMIT 1) AS latest_condition
+        FROM properties p
+        JOIN rooms r ON p.room_id = r.id
+        $where_sql
+        ORDER BY p.id DESC
+    ");
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    echo json_encode(['properties' => $rows, 'count' => count($rows)]);
+    exit;
+}
+
+// ── Normal page request from here ───────────────────────────
+require_once '../includes/admin_layout.php';
 
 $flash = '';
 $flash_type = 'success';
@@ -65,17 +103,14 @@ if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $flash = 'Property deleted.';
 }
 
-// ── Fetch data ───────────────────────────────────────────────
-$search = trim($_GET['q'] ?? '');
+// ── Fetch data for initial page render ───────────────────────
+$search      = trim($_GET['q']    ?? '');
 $room_filter = (int)($_GET['room'] ?? 0);
 
-$where  = [];
-$params = [];
+$where  = []; $params = [];
 if ($search) {
     $where[]  = "(p.property_name LIKE ? OR p.category LIKE ? OR p.serial_no LIKE ?)";
-    $params[] = "%$search%";
-    $params[] = "%$search%";
-    $params[] = "%$search%";
+    $params[] = "%$search%"; $params[] = "%$search%"; $params[] = "%$search%";
 }
 if ($room_filter) {
     $where[]  = "p.room_id = ?";
@@ -106,14 +141,21 @@ open_layout('Properties');
   </div>
 <?php endif; ?>
 
-<!-- Top bar: search + filter + add button -->
+<!-- Top bar: search + room dropdown (auto-filters on change) + add button -->
 <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:1.25rem;">
-  <form method="GET" style="display:flex;gap:.6rem;flex:1;flex-wrap:wrap;">
+  <div style="display:flex;gap:.6rem;flex:1;flex-wrap:wrap;align-items:center;">
+
     <div class="search-wrap" style="flex:1;min-width:200px;">
       <i class="bi bi-search"></i>
-      <input type="text" name="q" class="form-control" placeholder="Search properties…" value="<?= htmlspecialchars($search) ?>">
+      <input type="text" id="prop-search" class="form-control"
+             placeholder="Search properties…"
+             value="<?= htmlspecialchars($search) ?>"
+             autocomplete="off">
     </div>
-    <select name="room" class="form-select" style="width:auto;min-width:160px;">
+
+    <!-- Room dropdown — fires AJAX on change, no page reload -->
+    <select id="room-filter" class="form-select" style="width:auto;min-width:160px;"
+            data-initial="<?= $room_filter ?>">
       <option value="">All rooms</option>
       <?php foreach ($rooms as $rm): ?>
         <option value="<?= $rm['id'] ?>" <?= $room_filter === (int)$rm['id'] ? 'selected' : '' ?>>
@@ -121,10 +163,14 @@ open_layout('Properties');
         </option>
       <?php endforeach; ?>
     </select>
-    <button type="submit" class="btn-primary-custom" style="background:var(--navy)">
-      <i class="bi bi-funnel"></i> Filter
-    </button>
-  </form>
+
+    <!-- Visible only when a filter is active -->
+    <a id="clear-filters" href="properties.php"
+       style="display:none;align-items:center;gap:.25rem;color:var(--blue);font-size:.82rem;white-space:nowrap;">
+      <i class="bi bi-x-circle"></i> Clear
+    </a>
+
+  </div>
   <button class="btn-primary-custom" onclick="openModal('modal-add')">
     <i class="bi bi-plus-lg"></i> Add Property
   </button>
@@ -133,25 +179,33 @@ open_layout('Properties');
 <!-- Properties table -->
 <div class="card">
   <div class="card-header-custom">
-    <h5><i class="bi bi-box-seam me-2" style="color:var(--blue)"></i>All Properties</h5>
-    <span style="font-size:.78rem;color:var(--muted)"><?= count($properties) ?> record<?= count($properties) !== 1 ? 's' : '' ?></span>
+    <h5><i class="bi bi-box-seam me-2" style="color:var(--blue)"></i>
+        <span id="table-heading">All Properties</span></h5>
+    <span id="record-count" style="font-size:.78rem;color:var(--muted)">
+      <?= count($properties) ?> record<?= count($properties) !== 1 ? 's' : '' ?>
+    </span>
   </div>
-  <div style="overflow-x:auto;">
+  <div style="overflow-x:auto;position:relative;">
+
+    <!-- Loading shimmer shown during AJAX -->
+    <div id="table-loading"
+         style="display:none;position:absolute;inset:0;background:rgba(255,255,255,.75);
+                z-index:10;align-items:center;justify-content:center;gap:.5rem;
+                font-size:.85rem;color:var(--muted);">
+      <div style="width:1rem;height:1rem;border:2px solid var(--blue);border-top-color:transparent;
+                  border-radius:50%;animation:spin .6s linear infinite;"></div>
+      Loading…
+    </div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
     <table class="table-custom">
       <thead>
         <tr>
-          <th>#</th>
-          <th>Property Name</th>
-          <th>Category</th>
-          <th>Room</th>
-          <th>Qty</th>
-          <th>Serial No.</th>
-          <th>Condition</th>
-          <th>Date Acquired</th>
-          <th>Actions</th>
+          <th>#</th><th>Property Name</th><th>Category</th><th>Room</th>
+          <th>Qty</th><th>Serial No.</th><th>Condition</th><th>Date Acquired</th><th>Actions</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="properties-tbody">
         <?php if (empty($properties)): ?>
           <tr><td colspan="9" style="text-align:center;color:var(--muted);padding:2.5rem;">
             No properties found. <a href="properties.php" style="color:var(--blue)">Clear filters</a>
@@ -168,19 +222,16 @@ open_layout('Properties');
             <td>
               <?php
                 $cond = $p['latest_condition'];
-                if ($cond === 'damaged')  echo '<span class="badge-pill badge-damaged">Damaged</span>';
-                elseif ($cond === 'missing') echo '<span class="badge-pill badge-missing">Missing</span>';
-                elseif ($cond === 'good') echo '<span class="badge-pill badge-good">Good</span>';
+                if ($cond === 'damaged')      echo '<span class="badge-pill badge-damaged">Damaged</span>';
+                elseif ($cond === 'missing')  echo '<span class="badge-pill badge-missing">Missing</span>';
+                elseif ($cond === 'good')     echo '<span class="badge-pill badge-good">Good</span>';
                 else echo '<span style="color:var(--muted);font-size:.78rem;">Not reported</span>';
               ?>
             </td>
-            <td style="color:var(--muted);">
-              <?= $p['date_acquired'] ? date('M j, Y', strtotime($p['date_acquired'])) : '—' ?>
-            </td>
+            <td style="color:var(--muted);"><?= $p['date_acquired'] ? date('M j, Y', strtotime($p['date_acquired'])) : '—' ?></td>
             <td>
               <div style="display:flex;gap:.35rem;">
-                <button class="btn-sm-action"
-                  onclick='openEditModal(<?= htmlspecialchars(json_encode($p)) ?>)'>
+                <button class="btn-sm-action" onclick='openEditModal(<?= htmlspecialchars(json_encode($p)) ?>)'>
                   <i class="bi bi-pencil"></i>
                 </button>
                 <button class="btn-sm-action danger"
@@ -208,12 +259,10 @@ open_layout('Properties');
       <input type="hidden" name="action" value="add">
       <div class="modal-body-custom">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-
           <div style="grid-column:span 2">
             <label class="form-label">Property Name *</label>
             <input type="text" name="property_name" class="form-control" placeholder="e.g. Monobloc Chair" required>
           </div>
-
           <div style="grid-column:span 2">
             <label class="form-label">Room / Area *</label>
             <select name="room_id" class="form-select" required>
@@ -223,27 +272,22 @@ open_layout('Properties');
               <?php endforeach; ?>
             </select>
           </div>
-
           <div>
             <label class="form-label">Category</label>
             <input type="text" name="category" class="form-control" placeholder="e.g. Furniture">
           </div>
-
           <div>
             <label class="form-label">Serial / Property No.</label>
             <input type="text" name="serial_no" class="form-control" placeholder="e.g. SCH-2024-001">
           </div>
-
           <div>
             <label class="form-label">Quantity</label>
             <input type="number" name="quantity" class="form-control" value="1" min="1">
           </div>
-
           <div>
             <label class="form-label">Date Acquired</label>
             <input type="date" name="date_acquired" class="form-control">
           </div>
-
           <div style="grid-column:span 2">
             <label class="form-label">Remarks</label>
             <textarea name="remarks" class="form-control" rows="2" placeholder="Optional notes…"></textarea>
@@ -270,12 +314,10 @@ open_layout('Properties');
       <input type="hidden" name="property_id" id="edit-id">
       <div class="modal-body-custom">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-
           <div style="grid-column:span 2">
             <label class="form-label">Property Name *</label>
             <input type="text" name="property_name" id="edit-name" class="form-control" required>
           </div>
-
           <div style="grid-column:span 2">
             <label class="form-label">Room / Area *</label>
             <select name="room_id" id="edit-room" class="form-select" required>
@@ -285,27 +327,22 @@ open_layout('Properties');
               <?php endforeach; ?>
             </select>
           </div>
-
           <div>
             <label class="form-label">Category</label>
             <input type="text" name="category" id="edit-cat" class="form-control">
           </div>
-
           <div>
             <label class="form-label">Serial / Property No.</label>
             <input type="text" name="serial_no" id="edit-serial" class="form-control">
           </div>
-
           <div>
             <label class="form-label">Quantity</label>
             <input type="number" name="quantity" id="edit-qty" class="form-control" min="1">
           </div>
-
           <div>
             <label class="form-label">Date Acquired</label>
             <input type="date" name="date_acquired" id="edit-date" class="form-control">
           </div>
-
           <div style="grid-column:span 2">
             <label class="form-label">Remarks</label>
             <textarea name="remarks" id="edit-remarks" class="form-control" rows="2"></textarea>
@@ -345,16 +382,14 @@ open_layout('Properties');
 </div>
 
 <script>
-// Modal helpers
+// ── Modal helpers (unchanged) ─────────────────────────────────
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
-// Close on backdrop click
 document.querySelectorAll('.modal-backdrop-custom').forEach(m => {
   m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
 });
 
-// Populate edit modal
 function openEditModal(p) {
   document.getElementById('edit-id').value      = p.id;
   document.getElementById('edit-name').value    = p.property_name;
@@ -367,19 +402,141 @@ function openEditModal(p) {
   openModal('modal-edit');
 }
 
-// Populate delete modal
 function openDeleteModal(id, name) {
-  document.getElementById('delete-id').value   = id;
+  document.getElementById('delete-id').value        = id;
   document.getElementById('delete-name').textContent = name;
   openModal('modal-delete');
 }
 
-// Auto-open modal if there was a validation error on POST
 <?php if ($flash_type === 'error' && $action === 'add'): ?>
   openModal('modal-add');
 <?php elseif ($flash_type === 'error' && $action === 'edit'): ?>
   openModal('modal-edit');
 <?php endif; ?>
+
+// ── Dynamic room filtering ────────────────────────────────────
+(function () {
+  const roomSel    = document.getElementById('room-filter');
+  const searchInp  = document.getElementById('prop-search');
+  const tbody      = document.getElementById('properties-tbody');
+  const countEl    = document.getElementById('record-count');
+  const headingEl  = document.getElementById('table-heading');
+  const loadingEl  = document.getElementById('table-loading');
+  const clearLink  = document.getElementById('clear-filters');
+
+  // Room name map built from dropdown options (no extra request needed)
+  const roomNames = {};
+  [...roomSel.options].forEach(o => { if (o.value) roomNames[o.value] = o.text; });
+
+  let debounce = null;
+  let controller = null;
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s ?? '';
+    return d.innerHTML;
+  }
+
+  function badge(cond) {
+    if (cond === 'damaged') return '<span class="badge-pill badge-damaged">Damaged</span>';
+    if (cond === 'missing') return '<span class="badge-pill badge-missing">Missing</span>';
+    if (cond === 'good')    return '<span class="badge-pill badge-good">Good</span>';
+    return '<span style="color:var(--muted);font-size:.78rem;">Not reported</span>';
+  }
+
+  function fmtDate(d) {
+    if (!d) return '—';
+    return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+  }
+
+  function buildRow(p, n) {
+    const json = esc(JSON.stringify(p));
+    const safe = (p.property_name || '').replace(/'/g, "\\'");
+    return `<tr>
+      <td style="color:var(--muted);font-size:.78rem;">${n}</td>
+      <td style="font-weight:600;max-width:200px;">${esc(p.property_name)}</td>
+      <td>${esc(p.category || '—')}</td>
+      <td><span style="background:var(--blue-soft);color:var(--blue);padding:.2rem .6rem;border-radius:4px;font-size:.75rem;font-weight:600;">${esc(p.room_name)}</span></td>
+      <td>${p.quantity}</td>
+      <td style="color:var(--muted);font-family:monospace;font-size:.82rem;">${esc(p.serial_no || '—')}</td>
+      <td>${badge(p.latest_condition)}</td>
+      <td style="color:var(--muted);">${fmtDate(p.date_acquired)}</td>
+      <td><div style="display:flex;gap:.35rem;">
+        <button class="btn-sm-action" onclick='openEditModal(${json})'><i class="bi bi-pencil"></i></button>
+        <button class="btn-sm-action danger" onclick="openDeleteModal(${p.id},'${safe}')"><i class="bi bi-trash"></i></button>
+      </div></td>
+    </tr>`;
+  }
+
+  async function fetchProperties() {
+    const room = roomSel.value;
+    const q    = searchInp.value.trim();
+
+    // Update UI state
+    const hasFilter = room || q;
+    clearLink.style.display = hasFilter ? 'flex' : 'none';
+    headingEl.textContent   = room ? (roomNames[room] + ' Properties') : 'All Properties';
+    loadingEl.style.display = 'flex';
+
+    // Cancel previous in-flight request
+    if (controller) controller.abort();
+    controller = new AbortController();
+
+    // Call THIS same file with ?ajax=1
+    const url = new URL(location.href);
+    url.search = '';                         // clear existing params
+    url.searchParams.set('ajax', '1');
+    if (room) url.searchParams.set('room', room);
+    if (q)    url.searchParams.set('q', q);
+
+    try {
+      const res  = await fetch(url, { signal: controller.signal });
+      const data = await res.json();
+
+      if (data.count === 0) {
+        const msg = room
+          ? `No properties found in <strong>${esc(roomNames[room])}</strong>.`
+          : 'No properties found. <a href="properties.php" style="color:var(--blue)">Clear filters</a>';
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:2.5rem;">${msg}</td></tr>`;
+      } else {
+        tbody.innerHTML = data.properties.map((p, i) => buildRow(p, i + 1)).join('');
+      }
+
+      countEl.textContent = `${data.count} record${data.count !== 1 ? 's' : ''}`;
+
+      // Keep URL in sync for bookmarking
+      const qs = new URLSearchParams();
+      if (room) qs.set('room', room);
+      if (q)    qs.set('q', q);
+      history.replaceState(null, '', qs.toString() ? '?' + qs : location.pathname);
+
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--danger);padding:2.5rem;">
+          <i class="bi bi-exclamation-triangle me-1"></i>Failed to load. Please refresh.
+        </td></tr>`;
+      }
+    } finally {
+      loadingEl.style.display = 'none';
+      controller = null;
+    }
+  }
+
+  // Room change → instant fetch
+  roomSel.addEventListener('change', fetchProperties);
+
+  // Search → debounced fetch (350ms)
+  searchInp.addEventListener('input', () => {
+    clearTimeout(debounce);
+    debounce = setTimeout(fetchProperties, 350);
+  });
+
+  // On load, show clear-link if filters were in the URL
+  if (roomSel.value || searchInp.value.trim()) {
+    clearLink.style.display = 'flex';
+    if (roomSel.value) headingEl.textContent = roomNames[roomSel.value] + ' Properties';
+  }
+})();
 </script>
 
 <?php close_layout(); ?>
