@@ -38,7 +38,12 @@ if (isset($_GET['ajax'])) {
     $stmt->execute($params);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    echo json_encode(['properties' => $rows, 'count' => count($rows)]);
+    $total_items = array_sum(array_column($rows, 'quantity'));
+    echo json_encode([
+        'properties'  => $rows,
+        'count'       => count($rows),
+        'total_items' => $total_items,
+    ]);
     exit;
 }
 
@@ -184,8 +189,14 @@ open_layout('Properties');
   <div class="card-header-custom">
     <h5><i class="bi bi-box-seam me-2" style="color:var(--blue)"></i>
         <span id="table-heading">All Properties</span></h5>
+    <?php
+      $total_qty = array_sum(array_column($properties, 'quantity'));
+      $row_count = count($properties);
+    ?>
     <span id="record-count" style="font-size:.78rem;color:var(--muted)">
-      <?= count($properties) ?> record<?= count($properties) !== 1 ? 's' : '' ?>
+      <?= number_format($total_qty) ?> item<?= $total_qty !== 1 ? 's' : '' ?>
+      <span style="opacity:.5;margin:0 .25rem">&middot;</span>
+      <?= $row_count ?> entr<?= $row_count !== 1 ? 'ies' : 'y' ?>
     </span>
   </div>
   <div style="overflow-x:auto;position:relative;">
@@ -505,7 +516,12 @@ function openDeleteModal(id, name) {
         tbody.innerHTML = data.properties.map((p, i) => buildRow(p, i + 1)).join('');
       }
 
-      countEl.textContent = `${data.count} record${data.count !== 1 ? 's' : ''}`;
+      const totalItems = data.properties.reduce((sum, p) => sum + parseInt(p.quantity || 0), 0);
+      const rowCount   = data.count;
+      countEl.innerHTML =
+        `${totalItems.toLocaleString()} item${totalItems !== 1 ? 's' : ''}`
+        + ` <span style="opacity:.5;margin:0 .25rem">&middot;</span> `
+        + `${rowCount} entr${rowCount !== 1 ? 'ies' : 'y'}`;
 
       // Keep URL in sync for bookmarking
       const qs = new URLSearchParams();
