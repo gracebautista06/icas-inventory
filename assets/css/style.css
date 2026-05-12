@@ -20,7 +20,11 @@
 ============================================================ */
 body {
   font-family: 'DM Sans', sans-serif;
-  background: #F0F4F8;
+  background-image: url('assets/img/icas-school-background.jpg'); /* rename your file to this */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -38,13 +42,13 @@ body {
   min-height: 560px;
   border-radius: var(--radius);
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0,0,0,.12);
+  box-shadow: 0 20px 60px rgba(0,0,0,.3);
 }
 
 /* LEFT PANEL */
 .auth-brand {
   flex: 1;
-  background: var(--brand-navy);
+  background: rgba(27, 43, 75, 0.85); /* semi-transparent navy so text is readable */
   padding: 3rem 2.5rem;
   display: flex;
   flex-direction: column;
@@ -241,33 +245,4 @@ body {
   .auth-form-panel {
     padding: 2rem 1.5rem;
   }
-}
-/* background*/
-body {
-  font-family: 'DM Sans', sans-serif;
-  background-image: url('assets/img/icas school background.jpg'); 
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed; 
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem 1rem;
-}
-
-.auth-brand {
-  flex: 1;
-  background-image: url('your-image.jpg'); 
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  /* rest stays the same */
-  padding: 3rem 2.5rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  position: relative;
-  overflow: hidden;
 }
