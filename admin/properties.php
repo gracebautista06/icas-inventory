@@ -364,12 +364,6 @@ open_layout('Properties');
       </tbody>
     </table>
   </div>
-  <?php if ($is_grouped): ?>
-  <div style="padding:.6rem 1rem;font-size:.76rem;color:var(--muted);border-top:1px solid var(--border);background:var(--surface);">
-    <i class="bi bi-info-circle me-1"></i>
-    Showing combined totals across all rooms. Select a specific room above to edit individual entries.
-  </div>
-  <?php endif; ?>
 </div>
 
 <!-- ═══ ADD MODAL ═══ -->
@@ -714,22 +708,6 @@ function openDeleteModal(id, name) {
     </tr>`;
   }
 
-  // Add/remove the grouped info footer
-  function setGroupedFooter(show) {
-    let footer = document.getElementById('grouped-footer');
-    const card  = document.querySelector('.card');
-    if (show) {
-      if (!footer) {
-        footer = document.createElement('div');
-        footer.id = 'grouped-footer';
-        footer.style.cssText = 'padding:.6rem 1rem;font-size:.76rem;color:var(--muted);border-top:1px solid var(--border);background:var(--surface);';
-        footer.innerHTML = '<i class="bi bi-info-circle me-1"></i>Showing combined totals across all rooms. Select a specific room above to edit individual entries.';
-        card.appendChild(footer);
-      }
-    } else if (footer) {
-      footer.remove();
-    }
-  }
 
   async function fetchProperties() {
     const room = roomSel.value;
@@ -769,7 +747,6 @@ function openDeleteModal(id, name) {
         + ` <span style="opacity:.5;margin:0 .25rem">&middot;</span> `
         + `${rowCount} entr${rowCount !== 1 ? 'ies' : 'y'}`;
 
-      setGroupedFooter(grouped && data.count > 0);
 
       const qs = new URLSearchParams();
       if (room) qs.set('room', room);
