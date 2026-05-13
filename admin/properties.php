@@ -262,10 +262,6 @@ open_layout('Properties');
       <?php endforeach; ?>
     </select>
 
-    <a id="clear-filters" href="properties.php"
-       style="display:<?= ($room_filter || $search) ? 'flex' : 'none' ?>;align-items:center;gap:.25rem;color:var(--blue);font-size:.82rem;white-space:nowrap;">
-      <i class="bi bi-x-circle"></i> Clear
-    </a>
   </div>
   <button class="btn-primary-custom" onclick="openModal('modal-add')">
     <i class="bi bi-plus-lg"></i> Add Property
@@ -306,7 +302,7 @@ open_layout('Properties');
       <tbody id="properties-tbody">
         <?php if (empty($properties)): ?>
           <tr><td colspan="9" style="text-align:center;color:var(--muted);padding:2.5rem;">
-            No properties found. <a href="properties.php" style="color:var(--blue)">Clear filters</a>
+            No properties found.
           </td></tr>
         <?php else: ?>
           <?php foreach ($properties as $i => $p): ?>
@@ -652,7 +648,6 @@ function openDeleteModal(id, name) {
   const countEl   = document.getElementById('record-count');
   const headingEl = document.getElementById('table-heading');
   const loadingEl = document.getElementById('table-loading');
-  const clearLink = document.getElementById('clear-filters');
 
   const roomNames = {};
   [...roomSel.options].forEach(o => { if (o.value) roomNames[o.value] = o.text; });
@@ -713,8 +708,7 @@ function openDeleteModal(id, name) {
     const room = roomSel.value;
     const q    = searchInp.value.trim();
 
-    clearLink.style.display = (room || q) ? 'flex' : 'none';
-    headingEl.textContent   = room ? (roomNames[room] + ' Properties') : 'All Properties';
+    headingEl.textContent = room ? (roomNames[room] + ' Properties') : 'All Properties';
     loadingEl.style.display = 'flex';
 
     if (controller) controller.abort();
@@ -734,7 +728,7 @@ function openDeleteModal(id, name) {
       if (data.count === 0) {
         const msg = room
           ? `No properties found in <strong>${esc(roomNames[room])}</strong>.`
-          : 'No properties found. <a href="properties.php" style="color:var(--blue)">Clear filters</a>';
+          : 'No properties found.';
         tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:2.5rem;">${msg}</td></tr>`;
       } else {
         tbody.innerHTML = data.properties.map((p, i) => buildRow(p, i + 1, grouped)).join('');
@@ -771,10 +765,7 @@ function openDeleteModal(id, name) {
     debounce = setTimeout(fetchProperties, 350);
   });
 
-  if (roomSel.value || searchInp.value.trim()) {
-    clearLink.style.display = 'flex';
-    if (roomSel.value) headingEl.textContent = roomNames[roomSel.value] + ' Properties';
-  }
+  if (roomSel.value) headingEl.textContent = roomNames[roomSel.value] + ' Properties';
 })();
 </script>
 
