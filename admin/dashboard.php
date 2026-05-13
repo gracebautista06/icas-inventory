@@ -8,7 +8,7 @@ require_once '../includes/admin_layout.php';
 require_role('admin');
 
 // ── Stats ────────────────────────────────────────────────────
-$total_props   = $pdo->query("SELECT COUNT(*) FROM properties")->fetchColumn();
+$total_props   = $pdo->query("SELECT COUNT(*) FROM items")->fetchColumn();
 $total_rooms   = $pdo->query("SELECT COUNT(*) FROM rooms")->fetchColumn();
 $total_users   = $pdo->query("SELECT COUNT(*) FROM users WHERE role='instructor'")->fetchColumn();
 $pending_rpts  = $pdo->query("SELECT COUNT(*) FROM reports WHERE status='pending'")->fetchColumn();
@@ -17,11 +17,12 @@ $missing_count = $pdo->query("SELECT COUNT(*) FROM property_conditions WHERE con
 
 // ── Recent condition reports ──────────────────────────────────
 $recent = $pdo->query("
-    SELECT pc.*, p.property_name, u.full_name AS instructor_name, r.room_name
+    SELECT pc.*, i.property_name, u.full_name AS instructor_name, r.room_name
     FROM property_conditions pc
-    JOIN properties p ON pc.property_id = p.id
+    JOIN property_assignments pa ON pc.property_id = pa.id
+    JOIN items i ON pa.item_id = i.id
     JOIN users u ON pc.instructor_id = u.id
-    JOIN rooms r ON p.room_id = r.id
+    JOIN rooms r ON pa.room_id = r.id
     ORDER BY pc.reported_at DESC
     LIMIT 8
 ")->fetchAll();
