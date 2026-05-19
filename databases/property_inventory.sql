@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: May 13, 2026 at 04:48 PM
+-- Generation Time: May 19, 2026 at 04:32 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -41,9 +41,34 @@ CREATE TABLE `items` (
 --
 
 INSERT INTO `items` (`id`, `property_name`, `category`, `serial_no`, `date_acquired`, `remarks`) VALUES
-(1, 'chair', 'furniture', '0000012', '2025-12-03', 'all chairs are in good condition'),
-(2, 'computer', '', '', '2026-04-09', ''),
-(3, 'headset', '', '', '2026-04-21', '');
+(1, 'cabinet', 'furniture', '1', '2026-05-05', '');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `properties`
+--
+
+CREATE TABLE `properties` (
+  `id` int(11) NOT NULL,
+  `room_id` int(11) NOT NULL,
+  `property_name` varchar(150) NOT NULL,
+  `category` varchar(100) DEFAULT NULL,
+  `serial_no` varchar(100) DEFAULT NULL,
+  `quantity` int(11) DEFAULT 1,
+  `date_acquired` date DEFAULT NULL,
+  `remarks` text DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `properties`
+--
+
+INSERT INTO `properties` (`id`, `room_id`, `property_name`, `category`, `serial_no`, `quantity`, `date_acquired`, `remarks`) VALUES
+(5, 1, 'cabinet', 'furniture', '01', 5, '2026-05-06', ''),
+(6, 4, 'cabinet', 'furniture', '01', 5, '2026-05-05', ''),
+(7, 3, 'cabinet', 'furniture', '01', 5, '2026-05-06', ''),
+(8, 2, 'cabinet', 'furniture', '01', 5, '2026-05-06', '');
 
 -- --------------------------------------------------------
 
@@ -63,10 +88,10 @@ CREATE TABLE `property_assignments` (
 --
 
 INSERT INTO `property_assignments` (`id`, `item_id`, `room_id`, `quantity`) VALUES
-(1, 2, 1, 25),
-(2, 1, 3, 25),
-(3, 3, 2, 25),
-(4, 1, 4, 25);
+(1, 1, 1, 5),
+(2, 1, 4, 5),
+(3, 1, 3, 5),
+(4, 1, 2, 5);
 
 -- --------------------------------------------------------
 
@@ -88,9 +113,7 @@ CREATE TABLE `property_conditions` (
 --
 
 INSERT INTO `property_conditions` (`id`, `property_id`, `instructor_id`, `conditions`, `notes`, `reported_at`) VALUES
-(1, 1, 4, 'good', '', '2026-04-21 01:24:16'),
-(2, 1, 4, 'damaged', '', '2026-04-21 01:24:21'),
-(3, 1, 4, 'missing', '', '2026-04-21 01:24:25');
+(4, 8, 5, 'missing', 'usa kabook', '2026-05-19 00:40:54');
 
 -- --------------------------------------------------------
 
@@ -106,13 +129,6 @@ CREATE TABLE `reports` (
   `status` enum('pending','reviewed') DEFAULT 'pending',
   `submitted_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `reports`
---
-
-INSERT INTO `reports` (`id`, `instructor_id`, `room_id`, `title`, `status`, `submitted_at`) VALUES
-(1, 4, 1, 'INVENTORY REPORT AS OF 2026', 'reviewed', '2026-04-21 01:30:49');
 
 -- --------------------------------------------------------
 
@@ -182,7 +198,8 @@ INSERT INTO `users` (`id`, `full_name`, `email`, `password_hash`, `role`, `creat
 (4, 'grace', 'gracebautista066@gmail.com', '$2y$12$gv7nbRCwpj5ZFqutmtBRcebkouLotXDe8hHSJUAlbhw.Ly7YvQvSS', 'instructor', '2026-04-16 01:29:12'),
 (5, 'ninamae', 'ninamae@gmail.com', '$2y$12$zikcNQy5VMmhph5cpGmFS.Kb2RrvEpyG3BBEZPGnDeDbbHvx7D.wa', 'instructor', '2026-04-16 01:36:57'),
 (7, 'admin', 'admin@gmail.com', '$2y$12$xBXdPLjkesAbDRY.9HOkn.O8IFtQ2fSu0bieIsWEogy1.nj.foUA6', 'admin', '2026-04-21 00:41:51'),
-(8, 'frenses', 'frenses@gmail.com', '$2y$12$R1X/MHUhiiDcycFJQwqAl.Pm4NXFvMi3lrq1KEhhO5MixdzBDFhn6', 'instructor', '2026-04-21 01:42:09');
+(8, 'frenses', 'frenses@gmail.com', '$2y$12$R1X/MHUhiiDcycFJQwqAl.Pm4NXFvMi3lrq1KEhhO5MixdzBDFhn6', 'instructor', '2026-04-21 01:42:09'),
+(9, 'trixia', 'trixia@gmail.com', '$2y$12$fuaLlP820hcekRNRWkEvH.MUdMXqqvlrY8rBhKzYxenkF/8RVzrYe', 'instructor', '2026-05-19 01:59:45');
 
 --
 -- Indexes for dumped tables
@@ -193,6 +210,13 @@ INSERT INTO `users` (`id`, `full_name`, `email`, `password_hash`, `role`, `creat
 --
 ALTER TABLE `items`
   ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `properties`
+--
+ALTER TABLE `properties`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `room_id` (`room_id`);
 
 --
 -- Indexes for table `property_assignments`
@@ -247,19 +271,25 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `items`
 --
 ALTER TABLE `items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT for table `properties`
+--
+ALTER TABLE `properties`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `property_assignments`
 --
 ALTER TABLE `property_assignments`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `property_conditions`
 --
 ALTER TABLE `property_conditions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `reports`
@@ -283,11 +313,17 @@ ALTER TABLE `room_assignments`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- Constraints for dumped tables
 --
+
+--
+-- Constraints for table `properties`
+--
+ALTER TABLE `properties`
+  ADD CONSTRAINT `properties_ibfk_1` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `property_assignments`
@@ -300,6 +336,7 @@ ALTER TABLE `property_assignments`
 -- Constraints for table `property_conditions`
 --
 ALTER TABLE `property_conditions`
+  ADD CONSTRAINT `property_conditions_ibfk_1` FOREIGN KEY (`property_id`) REFERENCES `properties` (`id`),
   ADD CONSTRAINT `property_conditions_ibfk_2` FOREIGN KEY (`instructor_id`) REFERENCES `users` (`id`);
 
 --
