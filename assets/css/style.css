@@ -13,9 +13,6 @@
 
 * { box-sizing: border-box; }
 
-/* ============================================================
-   BODY — background set directly in index.php via inline style
-============================================================ */
 body {
   font-family: 'DM Sans', sans-serif;
   min-height: 100vh;
@@ -24,12 +21,12 @@ body {
   justify-content: center;
   padding: 2rem 1rem;
 
-  /* ── Background image ── */
-  background-image: url('../assets/img/icas_school_background.jpg');
+  /* Background image */
+  background: url('../assets/images/icas_school_background.jpg') no-repeat center center fixed;
   background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
+
+  /* Fallback colour if the image hasn't loaded yet */
+  background-color: #F0F4F8;
 }
 
 /* ============================================================
@@ -45,10 +42,10 @@ body {
   box-shadow: 0 20px 60px rgba(0,0,0,.35);
 }
 
-/* LEFT PANEL */
+/* ── LEFT PANEL — branding ── */
 .auth-brand {
   flex: 1;
-  background: rgba(27, 43, 75, 0.88);
+  background: rgba(27, 43, 75, 0.88); /* semi-transparent so bg image bleeds through */
   padding: 3rem 2.5rem;
   display: flex;
   flex-direction: column;
@@ -118,9 +115,7 @@ body {
 }
 .brand-tagline strong { color: #fff; }
 
-/* ============================================================
-   RIGHT PANEL
-============================================================ */
+/* ── RIGHT PANEL — form ── */
 .auth-form-panel {
   flex: 1.15;
   background: #fff;
@@ -256,25 +251,68 @@ body {
 .login-link a:hover { text-decoration: underline; }
 
 /* ============================================================
-   REGISTER PAGE EXTRA
+   REGISTER PAGE EXTRAS
 ============================================================ */
-.steps-list { list-style: none; padding: 0; }
+
+/* Invalid field state */
+.form-control.is-invalid { border-color: #DC2626; }
+
+/* Steps list in left panel */
+.steps-list {
+  list-style: none;
+  padding: 0; margin: 0;
+  z-index: 1;
+}
+
+.steps-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: .85rem;
+  margin-bottom: 1.1rem;
+  color: rgba(255,255,255,.8);
+  font-size: .88rem;
+  line-height: 1.5;
+}
 
 .step-dot {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
+  flex-shrink: 0;
+  width: 26px; height: 26px;
   background: rgba(37,99,235,.35);
+  border: 1.5px solid rgba(37,99,235,.6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .75rem;
+  font-weight: 600;
+  color: #93C5FD;
+  margin-top: 1px;
 }
 
 /* PASSWORD STRENGTH */
 .strength-bar {
   height: 4px;
+  border-radius: 4px;
   background: var(--border);
   margin-top: .5rem;
+  overflow: hidden;
 }
 
-.strength-fill { height: 100%; width: 0; }
+.strength-fill {
+  height: 100%;
+  border-radius: 4px;
+  width: 0;
+  transition: width .3s, background .3s;
+}
+
+.strength-label {
+  font-size: .75rem;
+  color: var(--text-muted);
+  margin-top: .3rem;
+}
+
+/* Raise pass-toggle z-index for register page (sits inside .input-group-icon) */
+.pass-wrapper.input-group-icon .pass-toggle { z-index: 3; }
 
 /* ============================================================
    RESPONSIVE

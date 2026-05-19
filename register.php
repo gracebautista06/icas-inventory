@@ -84,242 +84,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ICAS — Create Account</title>
 
+  <!-- Bootstrap 5 -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 
-  <style>
-    :root {
-      --brand-navy:   #1B2B4B;
-      --brand-blue:   #2563EB;
-      --brand-light:  #EFF4FF;
-      --brand-accent: #F59E0B;
-      --text-muted:   #6B7280;
-      --border:       #E5E7EB;
-      --radius:       14px;
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      font-family: 'DM Sans', sans-serif;
-      background: #F0F4F8;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem 1rem;
-    }
-
-    .auth-wrapper {
-      display: flex;
-      width: 100%;
-      max-width: 900px;
-      border-radius: var(--radius);
-      overflow: hidden;
-      box-shadow: 0 20px 60px rgba(0,0,0,.12);
-    }
-
-    /* Left branding panel */
-    .auth-brand {
-      flex: 1;
-      background: var(--brand-navy);
-      padding: 3rem 2.5rem;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      position: relative;
-      overflow: hidden;
-    }
-    .auth-brand::before {
-      content: '';
-      position: absolute;
-      top: -80px; left: -80px;
-      width: 340px; height: 340px;
-      border-radius: 50%;
-      background: rgba(37,99,235,.25);
-    }
-    .auth-brand::after {
-      content: '';
-      position: absolute;
-      bottom: -60px; right: -60px;
-      width: 260px; height: 260px;
-      border-radius: 50%;
-      background: rgba(245,158,11,.15);
-    }
-    .brand-logo {
-      font-family: 'DM Serif Display', serif;
-      color: #fff;
-      font-size: 2rem;
-      line-height: 1;
-      z-index: 1;
-    }
-    .brand-logo span {
-      display: block;
-      font-family: 'DM Sans', sans-serif;
-      font-size: .78rem;
-      font-weight: 500;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,.55);
-      margin-top: .35rem;
-    }
-
-    /* Steps on left panel */
-    .steps-list {
-      list-style: none;
-      padding: 0; margin: 0;
-      z-index: 1;
-    }
-    .steps-list li {
-      display: flex;
-      align-items: flex-start;
-      gap: .85rem;
-      margin-bottom: 1.1rem;
-      color: rgba(255,255,255,.8);
-      font-size: .88rem;
-      line-height: 1.5;
-    }
-    .step-dot {
-      flex-shrink: 0;
-      width: 26px; height: 26px;
-      background: rgba(37,99,235,.35);
-      border: 1.5px solid rgba(37,99,235,.6);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: .75rem;
-      font-weight: 600;
-      color: #93C5FD;
-      margin-top: 1px;
-    }
-
-    /* Right form panel */
-    .auth-form-panel {
-      flex: 1.2;
-      background: #fff;
-      padding: 2.5rem;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-    }
-
-    .auth-title {
-      font-family: 'DM Serif Display', serif;
-      font-size: 1.7rem;
-      color: var(--brand-navy);
-      margin-bottom: .3rem;
-    }
-    .auth-subtitle {
-      color: var(--text-muted);
-      font-size: .88rem;
-      margin-bottom: 1.6rem;
-    }
-
-    .form-label {
-      font-size: .8rem;
-      font-weight: 600;
-      color: #374151;
-      margin-bottom: .35rem;
-      text-transform: uppercase;
-      letter-spacing: .04em;
-    }
-    .input-group-icon { position: relative; }
-    .input-group-icon .bi {
-      position: absolute;
-      left: 14px; top: 50%;
-      transform: translateY(-50%);
-      color: var(--text-muted);
-      font-size: 1rem;
-      z-index: 2;
-    }
-    .input-group-icon input { padding-left: 2.6rem; }
-
-    .form-control {
-      border: 1.5px solid var(--border);
-      border-radius: 10px;
-      padding: .68rem 1rem;
-      font-size: .93rem;
-      transition: border-color .2s, box-shadow .2s;
-    }
-    .form-control:focus {
-      border-color: var(--brand-blue);
-      box-shadow: 0 0 0 3px rgba(37,99,235,.1);
-    }
-    .form-control.is-invalid { border-color: #DC2626; }
-
-    /* Password strength bar */
-    .strength-bar {
-      height: 4px;
-      border-radius: 4px;
-      background: var(--border);
-      margin-top: .5rem;
-      overflow: hidden;
-    }
-    .strength-fill {
-      height: 100%;
-      border-radius: 4px;
-      width: 0;
-      transition: width .3s, background .3s;
-    }
-    .strength-label {
-      font-size: .75rem;
-      color: var(--text-muted);
-      margin-top: .3rem;
-    }
-
-    /* Pass toggle */
-    .pass-wrapper { position: relative; }
-    .pass-toggle {
-      position: absolute;
-      right: 12px; top: 50%;
-      transform: translateY(-50%);
-      background: none; border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 1rem; padding: 0;
-      z-index: 3;
-    }
-    .pass-wrapper input { padding-right: 2.6rem; }
-
-    .btn-register {
-      background: var(--brand-blue);
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      padding: .75rem;
-      font-size: .95rem;
-      font-weight: 600;
-      width: 100%;
-      cursor: pointer;
-      transition: background .2s, transform .1s;
-      margin-top: .5rem;
-    }
-    .btn-register:hover  { background: #1D4ED8; }
-    .btn-register:active { transform: scale(.99); }
-
-    .alert {
-      border-radius: 10px;
-      font-size: .87rem;
-      padding: .7rem 1rem;
-      margin-bottom: 1.1rem;
-    }
-
-    .login-link {
-      text-align: center;
-      margin-top: 1.25rem;
-      font-size: .87rem;
-      color: var(--text-muted);
-    }
-    .login-link a { color: var(--brand-blue); font-weight: 600; text-decoration: none; }
-    .login-link a:hover { text-decoration: underline; }
-
-    @media (max-width: 640px) {
-      .auth-brand { display: none; }
-      .auth-form-panel { padding: 2rem 1.25rem; }
-    }
-  </style>
+  <!-- Shared stylesheet -->
+  <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
 
@@ -329,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div class="auth-brand">
     <div class="brand-logo">
       ICAS
-      <span>Inventory Control & Asset System</span>
+      <span>Inventory Control &amp; Asset System</span>
     </div>
 
     <div style="z-index:1">
@@ -404,16 +177,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
       </div>
 
+      <!-- Role -->
       <div class="mb-3">
-  <label class="form-label">Register as</label>
-  <div class="input-group-icon">
-    <i class="bi bi-briefcase"></i>
-    <select name="role" class="form-select form-control" style="padding-left: 2.6rem;" required>
-      <option value="instructor">Instructor</option>
-      <option value="admin">Administrator</option>
-    </select>
-  </div>
-</div>
+        <label class="form-label">Register as</label>
+        <div class="input-group-icon">
+          <i class="bi bi-briefcase"></i>
+          <!-- padding-left keeps the icon clear of the select text -->
+          <select name="role" class="form-select form-control" style="padding-left:2.6rem;" required>
+            <option value="instructor">Instructor</option>
+            <option value="admin">Administrator</option>
+          </select>
+        </div>
+      </div>
 
       <!-- Password -->
       <div class="mb-3">
@@ -430,7 +205,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             autocomplete="new-password"
             oninput="checkStrength(this.value)"
           >
-          <button type="button" class="pass-toggle" onclick="togglePass('password','icon1')">
+          <button type="button" class="pass-toggle" onclick="togglePass('password','icon1')" title="Show/hide password">
             <i class="bi bi-eye" id="icon1"></i>
           </button>
         </div>
@@ -453,7 +228,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             required
             autocomplete="new-password"
           >
-          <button type="button" class="pass-toggle" onclick="togglePass('confirm_password','icon2')">
+          <button type="button" class="pass-toggle" onclick="togglePass('confirm_password','icon2')" title="Show/hide password">
             <i class="bi bi-eye" id="icon2"></i>
           </button>
         </div>
@@ -477,7 +252,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 function togglePass(inputId, iconId) {
   const input = document.getElementById(inputId);
   const icon  = document.getElementById(iconId);
-  input.type  = input.type === 'password' ? 'text' : 'password';
+  input.type     = input.type === 'password' ? 'text' : 'password';
   icon.className = input.type === 'password' ? 'bi bi-eye' : 'bi bi-eye-slash';
 }
 
