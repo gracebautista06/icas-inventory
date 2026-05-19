@@ -22,7 +22,7 @@ body {
   padding: 2rem 1rem;
 
   /* Background image */
-  background: url('../assets/images/icas_school_background.jpg') no-repeat center center fixed;
+  background: url('/assets/images/icas_school_background.jpg');
   background-size: cover;
 
   /* Fallback colour if the image hasn't loaded yet */
@@ -321,3 +321,7 @@ body {
   .auth-brand { display: none; }
   .auth-form-panel { padding: 2rem 1.5rem; }
 }
+
+
+
+      

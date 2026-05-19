@@ -41,12 +41,6 @@ $depth  = (strpos($_SERVER['PHP_SELF'], '/admin/') !== false
         font-family: 'DM Sans', sans-serif;
         min-height: 100vh;
 
-        /* ── Background image ── */
-        background-image: url('../assets/images/icas_school_background.jpg');
-        background-size: cover;
-        background-position: center center;
-        background-repeat: no-repeat;
-        background-attachment: fixed;
         }
 
         /* ── Sidebar ────────────────────────────────────────────── */
