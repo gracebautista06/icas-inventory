@@ -11,21 +11,25 @@
   --radius:       14px;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 /* ============================================================
-   BODY
+   BODY — background set directly in index.php via inline style
 ============================================================ */
 body {
   font-family: 'DM Sans', sans-serif;
-  background: #F0F4F8;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 2rem 1rem;
+
+  /* ── Background image ── */
+  background-image: url('../assets/images/icas_school_background.jpg');
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 /* ============================================================
@@ -38,13 +42,13 @@ body {
   min-height: 560px;
   border-radius: var(--radius);
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0,0,0,.12);
+  box-shadow: 0 20px 60px rgba(0,0,0,.35);
 }
 
 /* LEFT PANEL */
 .auth-brand {
   flex: 1;
-  background: var(--brand-navy);
+  background: rgba(27, 43, 75, 0.88);
   padding: 3rem 2.5rem;
   display: flex;
   flex-direction: column;
@@ -75,22 +79,52 @@ body {
   font-family: 'DM Serif Display', serif;
   color: #fff;
   font-size: 2rem;
+  line-height: 1;
+  z-index: 1;
 }
 
 .brand-logo span {
   display: block;
   font-family: 'DM Sans', sans-serif;
   font-size: .78rem;
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
   color: rgba(255,255,255,.55);
+  margin-top: .35rem;
 }
+
+.brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  background: rgba(245,158,11,.18);
+  color: var(--brand-accent);
+  font-size: .78rem;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  padding: .4rem .9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(245,158,11,.35);
+  z-index: 1;
+}
+
+.brand-tagline {
+  color: rgba(255,255,255,.75);
+  font-size: 1.05rem;
+  line-height: 1.6;
+  z-index: 1;
+}
+.brand-tagline strong { color: #fff; }
 
 /* ============================================================
    RIGHT PANEL
 ============================================================ */
 .auth-form-panel {
-  flex: 1.2;
+  flex: 1.15;
   background: #fff;
-  padding: 2.5rem;
+  padding: 3rem 2.5rem;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -98,28 +132,30 @@ body {
 
 .auth-title {
   font-family: 'DM Serif Display', serif;
-  font-size: 1.7rem;
+  font-size: 1.8rem;
   color: var(--brand-navy);
+  margin-bottom: .4rem;
 }
 
 .auth-subtitle {
   color: var(--text-muted);
-  font-size: .88rem;
-  margin-bottom: 1.6rem;
+  font-size: .9rem;
+  margin-bottom: 2rem;
 }
 
 /* ============================================================
    FORMS
 ============================================================ */
 .form-label {
-  font-size: .8rem;
+  font-size: .82rem;
   font-weight: 600;
+  color: #374151;
+  margin-bottom: .4rem;
   text-transform: uppercase;
+  letter-spacing: .04em;
 }
 
-.input-group-icon {
-  position: relative;
-}
+.input-group-icon { position: relative; }
 
 .input-group-icon .bi {
   position: absolute;
@@ -127,16 +163,18 @@ body {
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-muted);
+  font-size: 1rem;
+  z-index: 2;
 }
 
-.input-group-icon input {
-  padding-left: 2.6rem;
-}
+.input-group-icon input { padding-left: 2.6rem; }
 
 .form-control {
   border: 1.5px solid var(--border);
   border-radius: 10px;
-  padding: .7rem 1rem;
+  padding: .72rem 1rem;
+  font-size: .95rem;
+  transition: border-color .2s, box-shadow .2s;
 }
 
 .form-control:focus {
@@ -145,19 +183,23 @@ body {
 }
 
 /* PASSWORD TOGGLE */
-.pass-wrapper {
-  position: relative;
-}
+.pass-wrapper { position: relative; }
 
 .pass-toggle {
   position: absolute;
   right: 12px;
   top: 50%;
   transform: translateY(-50%);
-  border: none;
   background: none;
+  border: none;
+  color: var(--text-muted);
   cursor: pointer;
+  font-size: 1rem;
+  padding: 0;
+  z-index: 2;
 }
+
+.pass-wrapper input { padding-right: 2.6rem; }
 
 /* ============================================================
    BUTTONS
@@ -166,24 +208,30 @@ body {
 .btn-register {
   background: var(--brand-blue);
   color: #fff;
+  border: none;
   border-radius: 10px;
-  padding: .75rem;
+  padding: .78rem;
+  font-size: .95rem;
   font-weight: 600;
   width: 100%;
-  border: none;
+  cursor: pointer;
+  transition: background .2s, transform .1s;
 }
 
 .btn-login:hover,
-.btn-register:hover {
-  background: #1D4ED8;
-}
+.btn-register:hover  { background: #1D4ED8; }
+
+.btn-login:active,
+.btn-register:active { transform: scale(.99); }
 
 /* ============================================================
    ALERTS
 ============================================================ */
 .alert {
   border-radius: 10px;
-  font-size: .87rem;
+  font-size: .88rem;
+  padding: .75rem 1rem;
+  margin-bottom: 1.25rem;
 }
 
 /* ============================================================
@@ -192,8 +240,9 @@ body {
 .register-link,
 .login-link {
   text-align: center;
-  margin-top: 1.2rem;
-  font-size: .87rem;
+  margin-top: 1.5rem;
+  font-size: .88rem;
+  color: var(--text-muted);
 }
 
 .register-link a,
@@ -203,13 +252,13 @@ body {
   text-decoration: none;
 }
 
+.register-link a:hover,
+.login-link a:hover { text-decoration: underline; }
+
 /* ============================================================
    REGISTER PAGE EXTRA
 ============================================================ */
-.steps-list {
-  list-style: none;
-  padding: 0;
-}
+.steps-list { list-style: none; padding: 0; }
 
 .step-dot {
   width: 26px;
@@ -225,20 +274,12 @@ body {
   margin-top: .5rem;
 }
 
-.strength-fill {
-  height: 100%;
-  width: 0;
-}
+.strength-fill { height: 100%; width: 0; }
 
 /* ============================================================
    RESPONSIVE
 ============================================================ */
 @media (max-width: 640px) {
-  .auth-brand {
-    display: none;
-  }
-
-  .auth-form-panel {
-    padding: 2rem 1.5rem;
-  }
+  .auth-brand { display: none; }
+  .auth-form-panel { padding: 2rem 1.5rem; }
 }

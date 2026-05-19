@@ -38,9 +38,15 @@ $depth  = (strpos($_SERVER['PHP_SELF'], '/admin/') !== false
         }
 
         body {
-            font-family: 'DM Sans', sans-serif;
-            background: #f4f7fb;
-            min-height: 100vh;
+        font-family: 'DM Sans', sans-serif;
+        min-height: 100vh;
+
+        /* ── Background image ── */
+        background-image: url('../assets/images/icas_school_background.jpg');
+        background-size: cover;
+        background-position: center center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
         }
 
         /* ── Sidebar ────────────────────────────────────────────── */
@@ -54,6 +60,7 @@ $depth  = (strpos($_SERVER['PHP_SELF'], '/admin/') !== false
             flex-direction: column;
             z-index: 1000;
             transition: transform .25s ease;
+            background: rgba(13, 27, 42, 0.96);
         }
 
         .sidebar-brand {
@@ -177,6 +184,9 @@ $depth  = (strpos($_SERVER['PHP_SELF'], '/admin/') !== false
             justify-content: space-between;
             padding: 0 1.6rem;
             z-index: 900;
+            background: rgba(255, 255, 255, 0.97);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
         }
 
         .topbar .page-heading {
