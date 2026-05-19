@@ -1,13 +1,14 @@
 <?php
 // ============================================================
-//  register.php — New Account Registration
+//  register.php — Instructor Registration (Public)
+//  Admin accounts are created manually via the database only.
 // ============================================================
 
 require_once 'config/db.php';
 
 if (session_status() === PHP_SESSION_NONE) session_start();
 
-// If already logged in, redirect
+// If already logged in, redirect to their dashboard
 if (!empty($_SESSION['user_id'])) {
     $dest = $_SESSION['user_role'] === 'admin' ? 'admin/dashboard.php' : 'instructor/dashboard.php';
     header("Location: $dest");
@@ -24,11 +25,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Collect & sanitize inputs
     $full_name        = trim($_POST['full_name']        ?? '');
     $email            = trim($_POST['email']            ?? '');
-    $role             =      $_POST['role']             ?? '';
     $password         =      $_POST['password']         ?? '';
     $confirm_password =      $_POST['confirm_password'] ?? '';
 
-    // Keep values for repopulating the form
+    // Role is ALWAYS instructor from public registration.
+    // Admin accounts must be inserted directly into the database.
+    $role = 'instructor';
+
+    // Keep values for repopulating the form on error
     $fields = ['full_name' => $full_name, 'email' => $email];
 
     // ── Validation ────────────────────────────────────────────
@@ -54,14 +58,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Passwords do not match.';
 
     } else {
-        // Check if email already exists
+        // Check for duplicate email (email must be unique)
         $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
         $stmt->execute([$email]);
 
         if ($stmt->fetch()) {
             $error = 'That email address is already registered.';
         } else {
-            // ── Create the account ────────────────────────────
+            // ── Create the instructor account ──────────────────
             $hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
 
             $stmt = $pdo->prepare(
@@ -70,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
             $stmt->execute([$full_name, $email, $hash, $role]);
 
-            // Redirect to login with success message
+            // Redirect to login with success flag
             header('Location: index.php?registered=1');
             exit;
         }
@@ -130,7 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div class="auth-form-panel">
 
     <h1 class="auth-title">Create an account</h1>
-    <p class="auth-subtitle">Register as an Instructor to get started</p>
+    <p class="auth-subtitle">Instructor registration — open to all staff</p>
 
     <?php if ($error): ?>
       <div class="alert alert-danger d-flex align-items-center gap-2">
@@ -177,18 +181,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
       </div>
 
-      <!-- Role -->
-      <div class="mb-3">
-        <label class="form-label">Register as</label>
-        <div class="input-group-icon">
-          <i class="bi bi-briefcase"></i>
-          <!-- padding-left keeps the icon clear of the select text -->
-          <select name="role" class="form-select form-control" style="padding-left:2.6rem;" required>
-            <option value="instructor">Instructor</option>
-            <option value="admin">Administrator</option>
-          </select>
-        </div>
-      </div>
+      <!-- REMOVED: "Register as" role dropdown -->
+      <!-- Role is hardcoded to 'instructor' server-side. -->
+      <!-- Admin accounts are created directly in the database. -->
 
       <!-- Password -->
       <div class="mb-3">

@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email    = trim($_POST['email']    ?? '');
     $password =      $_POST['password'] ?? '';
 
-    // Basic input check
+    // Basic input validation
     if (empty($email) || empty($password)) {
         $error = 'Please enter your email and password.';
 
@@ -39,9 +39,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Please enter a valid email address.';
 
     } else {
-        // Fetch user by email
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ? AND role = ? LIMIT 1");
-        $stmt->execute([$email, $_POST['role']]);
+        // Fetch user by email only — role is detected from the database,
+        // NOT supplied by the user. This prevents role spoofing.
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ? LIMIT 1");
+        $stmt->execute([$email]);
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password_hash'])) {
@@ -52,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['user_name'] = $user['full_name'];
             $_SESSION['user_role'] = $user['role'];
 
-            // Redirect based on role
+            // Redirect based on role stored in DB — never user input
             if ($user['role'] === 'admin') {
                 header('Location: admin/dashboard.php');
             } else {
@@ -61,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
 
         } else {
-            // Generic error — do NOT reveal whether email or password is wrong
+            // Generic error — never reveal whether email or password is wrong
             $error = 'Invalid email or password. Please try again.';
         }
     }
@@ -81,6 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 
+  <!-- Shared stylesheet -->
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
@@ -138,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             class="form-control"
             id="email"
             name="email"
-            placeholder="Enter email"
+            placeholder="Enter your email"
             value="<?= htmlspecialchars($_POST['email'] ?? '') ?>"
             required
             autocomplete="email"
@@ -164,15 +166,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <i class="bi bi-eye" id="pass-icon"></i>
           </button>
         </div>
-      </div>
-
-      <!-- Role selector -->
-      <div class="mb-3">
-        <label class="form-label">Login as</label>
-        <select name="role" class="form-select form-control" required>
-          <option value="instructor">Instructor</option>
-          <option value="admin">Administrator</option>
-        </select>
       </div>
 
       <button type="submit" class="btn-login">
